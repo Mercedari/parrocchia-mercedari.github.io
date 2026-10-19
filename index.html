@@ -1601,22 +1601,20 @@ function generateQR(text, canvas){
 }
 
 function showApp(){
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('totp-screen').style.display = 'none';
-  document.getElementById('app-header').style.display = 'flex';
-  var cb = document.getElementById('app-church-bar');
-  if(cb) cb.style.display = 'flex';
-  document.getElementById('app-nav').style.display = 'flex';
-  document.getElementById('app-main').style.display = 'block';
+  var ids = ['login-screen','totp-screen','app-header','app-church-bar','app-nav','app-main'];
+  var displays = ['none','none','flex','flex','flex','block'];
+  ids.forEach(function(id,i){
+    var el = document.getElementById(id);
+    if(el) el.style.display = displays[i];
+  });
 }
 function hideApp(){
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('totp-screen').style.display = 'none';
-  document.getElementById('app-header').style.display = 'none';
-  var cb = document.getElementById('app-church-bar');
-  if(cb) cb.style.display = 'none';
-  document.getElementById('app-nav').style.display = 'none';
-  document.getElementById('app-main').style.display = 'none';
+  var ids = ['login-screen','totp-screen','app-header','app-church-bar','app-nav','app-main'];
+  var displays = ['flex','none','none','none','none','none'];
+  ids.forEach(function(id,i){
+    var el = document.getElementById(id);
+    if(el) el.style.display = displays[i];
+  });
 }
 function showTotpScreen(){
   document.getElementById('login-screen').style.display = 'none';
@@ -1908,24 +1906,7 @@ function generateQR(text, canvas){
   canvas.style.display='none';
 }
 
-function showApp(){
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('totp-screen').style.display = 'none';
-  document.getElementById('app-header').style.display = 'flex';
-  var cb = document.getElementById('app-church-bar');
-  if(cb) cb.style.display = 'flex';
-  document.getElementById('app-nav').style.display = 'flex';
-  document.getElementById('app-main').style.display = 'block';
-}
-function hideApp(){
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('totp-screen').style.display = 'none';
-  document.getElementById('app-header').style.display = 'none';
-  var cb = document.getElementById('app-church-bar');
-  if(cb) cb.style.display = 'none';
-  document.getElementById('app-nav').style.display = 'none';
-  document.getElementById('app-main').style.display = 'none';
-}
+
 function showTotpScreen(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('totp-screen').style.display = 'flex';
