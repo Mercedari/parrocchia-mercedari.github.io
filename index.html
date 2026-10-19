@@ -454,21 +454,21 @@ tbody tr:last-child{border-bottom:none}
   <div class="export-grid">
     <div class="export-card">
       <div class="export-icon">📊</div>
-      <h3>Registro Excel completo</h3>
-      <p>Tutti i movimenti dell'anno in formato CSV, apribile con Excel, Numbers o Google Sheets.</p>
+      <h3>Esporta movimenti</h3>
+      <p>Scarica tutti i movimenti dell'anno in formato CSV, apribile con Excel, Numbers o Google Sheets.</p>
       <button class="btn btn-primary" onclick="exportExcel()">📥 Scarica CSV</button>
     </div>
     <div class="export-card">
       <div class="export-icon">📑</div>
-      <h3>Bilancio consuntivo PDF</h3>
-      <p>Documento formale con grafici, tabelle di riepilogo e rendiconto per categoria, pronto per l'assemblea.</p>
-      <button class="btn btn-gold" onclick="exportBilancio()">📄 Scarica PDF bilancio</button>
+      <h3>Bilancio consuntivo</h3>
+      <p>Apre il bilancio completo pronto per la stampa. Dal dialogo di stampa scegli <strong>"Salva come PDF"</strong> per ottenere il file.</p>
+      <button class="btn btn-gold" onclick="exportBilancio()">🖨️ Apri bilancio</button>
     </div>
     <div class="export-card">
       <div class="export-icon">📋</div>
       <h3>Rendiconto sintetico</h3>
-      <p>Stampa diretta del rendiconto mensile con entrate, uscite e saldo in formato A4.</p>
-      <button class="btn btn-outline" onclick="exportRendiconto()">📄 Scarica PDF rendiconto</button>
+      <p>Apre il rendiconto mensile pronto per la stampa. Dal dialogo di stampa scegli <strong>"Salva come PDF"</strong> per ottenere il file.</p>
+      <button class="btn btn-outline" onclick="exportRendiconto()">🖨️ Apri rendiconto</button>
     </div>
   </div>
 
@@ -706,7 +706,7 @@ function initYears(){
 }
 function changeYear(){
   currentYear=parseInt(document.getElementById('globalYear').value);
-  document.getElementById('dash-title').textContent='Dashboard '+currentYear;
+  document.getElementById('dash-title').textContent='Dashboard '+currentYear+' — '+CHURCHES[currentChurch].short;
   document.getElementById('budget-title').textContent='Budget '+currentYear;
   renderAll();
 }
@@ -1054,192 +1054,24 @@ function savePdfBlob(pdfBlob, filename){
   }
 }
 
-async function exportToPdf(elementId, filename, triggerBtn){
-  if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
-    alert('Librerie PDF non disponibili. Assicurati di avere connessione internet e riprova.');
+function openPrintPDF(content, title){
+  var printWin = window.open('','_blank');
+  if(!printWin){
+    alert('Popup bloccato! Vai su Impostazioni del browser e consenti i popup per questo sito, poi riprova.');
     return;
   }
-  const el = document.getElementById(elementId);
-  if(!el){ alert('Contenuto non trovato. Riprova.'); return; }
-
-  const btn = triggerBtn || null;
-  const origText = btn ? btn.textContent : '';
-  if(btn){ btn.textContent = '⏳ Generazione...'; btn.disabled = true; }
-
-  try {
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      windowWidth: 900
-    });
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const usableH = pageH - margin * 2;
-
-    let remaining = imgH;
-    let pageStart = 0;
-    let firstPage = true;
-
-    while(remaining > 0){
-      if(!firstPage) pdf.addPage();
-      firstPage = false;
-
-      const sliceH = Math.min(remaining, usableH);
-      const srcYpx = pageStart * (canvas.height / imgH);
-      const srcHpx = sliceH * (canvas.height / imgH);
-
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = Math.ceil(srcHpx);
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, srcYpx, canvas.width, srcHpx, 0, 0, canvas.width, srcHpx);
-
-      pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceH);
-
-      pageStart += sliceH;
-      remaining -= sliceH;
-    }
-
-    // Get blob instead of auto-saving — gives us control on Apple
-    const pdfBlob = pdf.output('blob');
-    savePdfBlob(pdfBlob, filename + '.pdf');
-
-  } catch(err){
-    alert('Errore PDF: ' + err.message);
-    console.error(err);
-  } finally {
-    if(btn){ btn.textContent = origText; btn.disabled = false; }
-  }
+  var styles = '<style>body{font-family:Georgia,serif;margin:2cm;color:#1C1C1C;font-size:12px;line-height:1.5}table{width:100%;border-collapse:collapse;margin-bottom:1rem}th{background:#F5EFE0;padding:6px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;text-transform:uppercase}td{padding:5px 8px;border-bottom:1px solid #EAE4D6}h3{color:#1A3A2A;margin:1rem 0 0.5rem;font-size:14px}@page{margin:2cm}.no-print{display:none}</style>';
+  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'+styles+'</head><body>'+content+'</body></html>');
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(function(){ printWin.print(); }, 500);
 }
 
 function exportRendiconto(){
   renderPreview();
-  exportToPdf('preview-rendiconto', 'Rendiconto_' + currentYear, document.querySelector('[onclick="exportRendiconto()"]'));
-}
-
-function exportBilancio(){
-  renderPreview();
-  const year=currentYear;
-  const m=getMov(year);
-  const din=aggByCat('entrata',year);
-  const dout=aggByCat('uscita',year);
-  const tot_in=totalIn(year),tot_out=totalOut(year),bal=tot_in-tot_out;
-  const bud=getBudget(year);
-  const years=getYears();
-  const dm=aggByMonth(year);
-
-  const fullContent=`
-  <div style="text-align:center;margin-bottom:2rem">
-    <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:8px">
-    <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhLS0gQ3JlYXRlZCB3aXRoIElua3NjYXBlIChodHRwOi8vd3d3Lmlua3NjYXBlLm9yZy8pIC0tPgoKPHN2ZwogICB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iCiAgIHhtbG5zOmNjPSJodHRwOi8vY3JlYXRpdmVjb21tb25zLm9yZy9ucyMiCiAgIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIKICAgeG1sbnM6c3ZnPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIgogICB4bWxuczpzb2RpcG9kaT0iaHR0cDovL3NvZGlwb2RpLnNvdXJjZWZvcmdlLm5ldC9EVEQvc29kaXBvZGktMC5kdGQiCiAgIHhtbG5zOmlua3NjYXBlPSJodHRwOi8vd3d3Lmlua3NjYXBlLm9yZy9uYW1lc3BhY2VzL2lua3NjYXBlIgogICB3aWR0aD0iNzY1Ljg0MDA5IgogICBoZWlnaHQ9IjkzMS4yMjA4MyIKICAgaWQ9InN2ZzIiCiAgIHZlcnNpb249IjEuMSIKICAgaW5rc2NhcGU6dmVyc2lvbj0iMC40OC4wIHI5NjU0IgogICBzb2RpcG9kaTpkb2NuYW1lPSJBcm1zIG9mIHRoZSBNZXJjZWRhcmlhbnMgKEhlcmFsZHJ5IG9mIHRoZSBGb3JtZXIgQ3Jvd24gb2YgQXJhZ29uIFRlcnJpdG9yaWVzKS5zdmciCiAgIGlua3NjYXBlOmV4cG9ydC1maWxlbmFtZT0iL1VzZXJzL1NvZGEvRGVza3RvcC9VSyBvZiB0aGUgR0IgYW5kIE5JLnBuZyIKICAgaW5rc2NhcGU6ZXhwb3J0LXhkcGk9IjE0My4yMzM2NCIKICAgaW5rc2NhcGU6ZXhwb3J0LXlkcGk9IjE0My4yMzM2NCIKICAgc3R5bGU9ImRpc3BsYXk6aW5saW5lIj4KICA8ZGVmcwogICAgIGlkPSJkZWZzNCIgLz4KICA8c29kaXBvZGk6bmFtZWR2aWV3CiAgICAgaWQ9ImJhc2UiCiAgICAgcGFnZWNvbG9yPSIjZmZmZmZmIgogICAgIGJvcmRlcmNvbG9yPSIjNjY2NjY2IgogICAgIGJvcmRlcm9wYWNpdHk9IjEuMCIKICAgICBpbmtzY2FwZTpwYWdlb3BhY2l0eT0iMC4wIgogICAgIGlua3NjYXBlOnBhZ2VzaGFkb3c9IjIiCiAgICAgaW5rc2NhcGU6em9vbT0iMC4zOTE5NTg1OSIKICAgICBpbmtzY2FwZTpjeD0iMzgyLjkyMDA0IgogICAgIGlua3NjYXBlOmN5PSI0NjUuNjEwNDEiCiAgICAgaW5rc2NhcGU6ZG9jdW1lbnQtdW5pdHM9InB4IgogICAgIGlua3NjYXBlOmN1cnJlbnQtbGF5ZXI9Imc1MDk0IgogICAgIHNob3dncmlkPSJmYWxzZSIKICAgICBpbmtzY2FwZTp3aW5kb3ctd2lkdGg9IjEwMjQiCiAgICAgaW5rc2NhcGU6d2luZG93LWhlaWdodD0iNTU0IgogICAgIGlua3NjYXBlOndpbmRvdy14PSIwIgogICAgIGlua3NjYXBlOndpbmRvdy15PSIzMCIKICAgICBpbmtzY2FwZTp3aW5kb3ctbWF4aW1pemVkPSIwIgogICAgIHNob3dndWlkZXM9InRydWUiCiAgICAgaW5rc2NhcGU6Z3VpZGUtYmJveD0idHJ1ZSIKICAgICBpbmtzY2FwZTpvYmplY3Qtbm9kZXM9ImZhbHNlIgogICAgIGlua3NjYXBlOnNuYXAtbm9kZXM9ImZhbHNlIgogICAgIGlua3NjYXBlOnNuYXAtcGFnZT0idHJ1ZSIKICAgICBpbmtzY2FwZTpzbmFwLWJib3g9ImZhbHNlIgogICAgIGlua3NjYXBlOnNuYXAtZ3JpZHM9ImZhbHNlIgogICAgIGlua3NjYXBlOnNuYXAtdG8tZ3VpZGVzPSJmYWxzZSIKICAgICBmaXQtbWFyZ2luLXRvcD0iMCIKICAgICBmaXQtbWFyZ2luLWxlZnQ9IjAiCiAgICAgZml0LW1hcmdpbi1yaWdodD0iMCIKICAgICBmaXQtbWFyZ2luLWJvdHRvbT0iMCI+CiAgICA8aW5rc2NhcGU6Z3JpZAogICAgICAgdHlwZT0ieHlncmlkIgogICAgICAgaWQ9ImdyaWQxNDMyMiIKICAgICAgIGVtcHNwYWNpbmc9IjUiCiAgICAgICB2aXNpYmxlPSJ0cnVlIgogICAgICAgZW5hYmxlZD0idHJ1ZSIKICAgICAgIHNuYXB2aXNpYmxlZ3JpZGxpbmVzb25seT0idHJ1ZSIgLz4KICA8L3NvZGlwb2RpOm5hbWVkdmlldz4KICA8bWV0YWRhdGEKICAgICBpZD0ibWV0YWRhdGE3Ij4KICAgIDxyZGY6UkRGPgogICAgICA8Y2M6V29yawogICAgICAgICByZGY6YWJvdXQ9IiI+CiAgICAgICAgPGRjOmZvcm1hdD5pbWFnZS9zdmcreG1sPC9kYzpmb3JtYXQ+CiAgICAgICAgPGRjOnR5cGUKICAgICAgICAgICByZGY6cmVzb3VyY2U9Imh0dHA6Ly9wdXJsLm9yZy9kYy9kY21pdHlwZS9TdGlsbEltYWdlIiAvPgogICAgICAgIDxkYzp0aXRsZT48L2RjOnRpdGxlPgogICAgICA8L2NjOldvcms+CiAgICA8L3JkZjpSREY+CiAgPC9tZXRhZGF0YT4KICA8ZwogICAgIGlua3NjYXBlOmxhYmVsPSJMYXllciAxIgogICAgIGlua3NjYXBlOmdyb3VwbW9kZT0ibGF5ZXIiCiAgICAgaWQ9ImxheWVyMSIKICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1MjIuMTAwOSw0NjAuMzA3NzkpIgogICAgIHN0eWxlPSJkaXNwbGF5OmlubGluZSI+CiAgICA8ZwogICAgICAgaWQ9Imc1NDc3MyI+CiAgICAgIDxnCiAgICAgICAgIGlkPSJnMjE5MTkiCiAgICAgICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNDI2LjI1MjYsLTExMS4yMjE1MykiPgogICAgICAgIDxnCiAgICAgICAgICAgdHJhbnNmb3JtPSJtYXRyaXgoMS44ODQ0MjQ1LDAsMCwxLjg4NDQyNDUsMTc2LjQxMTg3LC0yODguMjAzMSkiCiAgICAgICAgICAgc3R5bGU9ImRpc3BsYXk6aW5saW5lIgogICAgICAgICAgIGlkPSJnMTY0MzM0Ij4KICAgICAgICAgIDxnCiAgICAgICAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgwLjY3Mzc3OTEyLDAsMCwwLjY3Mzc3OTEyLDY3Mi42NjczMSwtMjkuOTc5NTg1KSIKICAgICAgICAgICAgIGlkPSJnNzcyNSI+CiAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgIGlkPSJnNDM0NjgiCiAgICAgICAgICAgICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKDkzMy45MDI3OSwtMjA0LjA3NzgyKSI+CiAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtNjQ0Ljk0ODQzLC03OTUuNjcwMTEpIgogICAgICAgICAgICAgICAgIGlkPSJnMTY2NjEtMS0xIj4KICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICBpZD0iZzEzNTEzOSIKICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDAuODI2MiwwLDAsMC44MjYyLC05OS4xNzA5ODUsMjgyLjA3NTg4KSI+CiAgICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICAgIGlkPSJnNDUzMiIKICAgICAgICAgICAgICAgICAgICAgdHJhbnNmb3JtPSJtYXRyaXgoMS4wMiwwLDAsMS4wMiw3LjM1Nzg4MzMsLTIxLjUyMTc1MSkiPgogICAgICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICAgICAgaWQ9Imc1MDk0IgogICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuMjc1LDAsMCwxLjI3NSwxMDAuNjg2NzksLTM1OC45NzQyNCkiPgogICAgICAgICAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnODg3NiIKICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDAuOTYwNCwwLDAsMC45NjA0LC0yMy44MjA5OTEsNjIuMzQ4MTQ5KSI+CiAgICAgICAgICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlPSJkaXNwbGF5OmlubGluZSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9ImcxMTcyNjkiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuNjM2ODc3NiwwLDAsMS42MzY4Nzc2LC0zNDYuMTE5NDUsMjMzLjY0MzcyKSI+CiAgICAgICAgICAgICAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0iZzExNDIzMyIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPC9nPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZGlzcGxheTppbmxpbmUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnMTgxMTkiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDAuNzg3NTk2MzgsMCwwLDAuNzg3NTk2MzgsLTE0MzguMTk0MiwxMjA2LjIzMTIpIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgxLjY3MjA5ODMsMCwwLDEuNjcyMDk4MywxMDk0Ljc3NTYsMTU1My43NjE3KSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9ImcxMTYxOC05LTAtMiIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9InN0cm9rZS13aWR0aDowLjg4NzYwNjg2O3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLWRhc2hhcnJheTpub25lO2Rpc3BsYXk6aW5saW5lIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0iZzEzOTk4IgogICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZGlzcGxheTppbmxpbmUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuNDg0MTY1OSwwLDAsMS40ODQxNjU5LDgxNy41NDI2NSwxMjA3LjMyMjQpIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgxLjY3MjA5ODMsMCwwLDEuNjcyMDk4MywzNzI3LjA4NTgsMTY0Ny43MjEyKSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9ImcxMTYxOC05LTAtMi01IgogICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0ic3Ryb2tlLXdpZHRoOjAuODg3NjA2ODY7c3Ryb2tlLW1pdGVybGltaXQ6NDtzdHJva2UtZGFzaGFycmF5Om5vbmU7ZGlzcGxheTppbmxpbmUiIC8+CiAgICAgICAgICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnMzQ3NTUtMi0wIgogICAgICAgICAgICAgICAgICAgICAgICAgICB0cmFuc2Zvcm09Im1hdHJpeCgxLjQ4NDE2NTksMCwwLDEuNDg0MTY1OSwtMjYzMS42MjQ1LDc1My4wOTUyKSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImRpc3BsYXk6aW5saW5lIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0iZzQ1ODEzLTAiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuNDg0MTY1OSwwLDAsMS40ODQxNjU5LC0yODU3LjE4NywyOTQuMDM2NjIpIgogICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZGlzcGxheTppbmxpbmUiIC8+CiAgICAgICAgICAgICAgICAgICAgICAgIDxnCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnNTgxNjciCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuNjY5NjE1MiwwLDAsMS42Njk2MTUyLC02ODAuMTU1MzQsMjM5Ljg0ODkxKSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImRpc3BsYXk6aW5saW5lIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8cGF0aAogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0icGF0aDcwMTQtNi03LTI4LTMtMi00LTUtMSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImZpbGw6I2ZlZTQ2ZTtmaWxsLW9wYWNpdHk6MTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4xOTc4NjQyOTtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtkaXNwbGF5OmlubGluZSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgZD0ibSAtMTgyLjExNDU1LDYyMi45NTgxMiBjIDAuNzM3NTMsNTQuNjg3MDYgMy41NDQzMyw5Ny4zNjEwNyAyOC4wNDM0NywxMzAuNzI5NiAyOS41MTE0Niw0MC4xOTU3MSA3OC42NzYzOSw2OS4yMDI3NSAxNDEuOTE5NTczLDk3LjcwMTUyIDYzLjI0MzA0NCwtMjguNDk4NzcgMTEyLjQwNzgyNywtNTcuNTA1ODEgMTQxLjkxOTMyNywtOTcuNzAxNTIgMjQuNDk4OTgsLTMzLjM2ODUzIDI3LjIyNjk3LC03Ni4wNDM2MiAyOC4wNDMzMiwtMTMwLjcyOTYgMC44NDc1OSwtNTYuNzU5MzIgMC45MDA3MiwtMTI4Ljg5NDE1IDAsLTE4NS42NTUxOSAtNTIuNjAwODEsNDQuOTc5MDYgLTE0MC4wOTA2MjMsMjkuNzY1NzMgLTE3MC4zOTk3MDMsMS4zMTcwOCAtNDEuOTk1MTM2LDMyLjUyOTggLTEyMS4wMTk1NDcsNDUuMTc1MjcgLTE2OS41MjU4NDcsLTIuMTk1MTQgLTEuMDIyMjYsNTYuNzU5OCAtMC43NjU1MywxMjkuNzczNjUgLTEuNGUtNCwxODYuNTMzMjUgeiIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc29kaXBvZGk6bm9kZXR5cGVzPSJzc2Nzc2NjY3MiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlua3NjYXBlOmNvbm5lY3Rvci1jdXJ2YXR1cmU9IjAiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0ibWF0cml4KDEuNjY5NjE1MiwwLDAsMS42Njk2MTUyLC0zNDUuNjgzOTUsMjE2Ljc5NDg1KSIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPHBhdGgKICAgICAgICAgICAgICAgICAgICAgICAgICAgc29kaXBvZGk6bm9kZXR5cGVzPSJzY2NjY3Nzc3NzIgogICAgICAgICAgICAgICAgICAgICAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIgogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0icmVjdDExNTQ0OSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgZD0ibSAtNjQ5Ljc3Njk4LDk0Ny45NzgyOCBjIDkyLjI5MjcxLDU4LjI2NDEyIDE5Ni4zNjcyLDU0LjkxODgyIDI4My4wMzgwNywyLjMxMzU4IDM5Ljg4NjI4LDE5LjUzMjg0IDgwLjk3NDI5LDM3LjI2MzA5IDEzMi40MTI2NCwzOS40Njc4MyAxMS44NTgyNCw0LjQ4ODAzIDEzMy4zNjQxNCwtMTQuOTg2NzMgMTUxLjcyNTE3NCwtNDIuOTM5MDIgMS42Mzk0NDksMTA1LjY4NTMzIC0wLjI4MjQ4NSwyMzEuMjQ1OTMgLTAuOTUzMjc2LDMzMi43MDY0MyAtMC4wMDQ5LDAuNzQxNSAtMy4xODAzMjQsMC4wMzEgLTQuMTcwNDg4LDAuMDMxIGwgLTU2Mi4wNTIxMiwwIGMgLTAuOTkwMTYsMCAxLjA5MjkyLDAuNzEwNCAxLjA3MjUzLC0wLjAzMSAtMi44MDgzNywtMTAyLjEwNjEgLTMuMDQ3OTgsLTIwMi40Njg4IC0wLjQ3NjY0LC0zMDYuMzE4MTggMC4wMTg0LC0wLjc0MTM4IC0xLjQzMzE3LC0yNS43NTkyMSAtMC41OTU4OSwtMjUuMjMwNjQgeiIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImZpbGw6I2NlMGYyNTtmaWxsLW9wYWNpdHk6MTtmaWxsLXJ1bGU6ZXZlbm9kZDtzdHJva2U6bm9uZSIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9Imc5NDk0LTYtNy0yLTMiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlPSJmaWxsOiNmZWU0NmU7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7ZGlzcGxheTppbmxpbmUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xMTM0LjQ3NDMsOTMuNTM3NDkxKSIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPHBhdGgKICAgICAgICAgICAgICAgICAgICAgICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc29kaXBvZGk6bm9kZXR5cGVzPSJjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGQ9Im0gLTE0OC40NDQ1OSwxNDg3LjE0NzIgMC4wMTEzLC0xMC4xNjIgMC4yMjA0LC0xOTcuOTIwNyAtNjIuMDQ4ODIsMC4wMjEgMS4yOTE0MywyNTIuMjM3NyAwLjA2NDcsMTkuMzA5IGMgMjguODI3MzcsLTIzLjAwNjkgMzMuNTE2OSwtMjIuOTY2NCA2MC40NjA5NywtNTIuMDQ1NCB6IG0gLTM4MC43MjU0LC0yMDcuOTUwMiAtNjMuNzgxODksMC4wMjIgMC4yMjc3LDE4Ny43NTUyIDAuMDEwNiwyMC4xNDQ5IGMgMTcuNzk0NzksMjQuMjY3MyA1Mi4yODM2NCw1Mi44MDI0IDY0LjE4Mzk1LDYwLjMzODEgbCAtMC4wMjQyLC0xNy4wODkxIC0wLjYxMDU3LC0yNTEuMTcxMyAwLDAgMCwwIHogbSAxOTEuMzQ2NzcsLTAuMDY3IDYzLjc4MTksLTAuMDIyIC0wLjcxMjMyLDMwMC4zNTQ1IC0wLjAyMzMsMTIuMjIwOCBjIC0xNy40Mzg1NCwxMi40ODAyIC0zNS41NjgzMSwxOS4yNDQgLTYyLjQwNTA0LDMzLjA2MDEgbCAtMC42Mzg5NiwtMzQ1LjYxMzIgMCwwIC0wLjAwMiwwIHogbSAtNjMuNzgxOSwwLjAyMiAtNjMuNzgyOTcsMC4wMjIgLTEuNzgzMzMsMjk3LjQzMTMgLTAuMDQxNyw5LjgxOTMgYyAzNi4xMzIwMywyMC42MTkxIDMxLjY1MTUzLDE3Ljc4NTQgNjYuMjY2NTYsMzQuNjI1IGwgLTAuMDEsLTUuMzY1MSAtMC42OTEyNiwtMzM2LjUzMjcgMCwwIDAsMCAwLDAgMCwwIHoiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlPSJmaWxsOiNjZTBmMjU7ZmlsbC1vcGFjaXR5OjE7c3Ryb2tlOm5vbmU7ZGlzcGxheTppbmxpbmUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJwYXRoNzAxNC02LTctMC04LTY0LTMtMC05LTktNiIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICAgICAgICAgICAgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTExMzQuNDc0Myw5Mi4yOTQ2MTcpIgogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0iZzEwODIyLTQtNy03Ij4KICAgICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnOTQ5NC02LTctMiIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPC9nPgogICAgICAgICAgICAgICAgICAgICAgICA8ZwogICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZmlsbDojOTk5OTk5O2Rpc3BsYXk6aW5saW5lIgogICAgICAgICAgICAgICAgICAgICAgICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTU0OC44MTg5LDMwNS4xNjUxKSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9ImcxMDgyMi00LTctNy0wIiAvPgogICAgICAgICAgICAgICAgICAgICAgICA8cGF0aAogICAgICAgICAgICAgICAgICAgICAgICAgICBpZD0icmVjdDEyNTY0LTctMi0xLTEtMyIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1vcGFjaXR5OjE7c3Ryb2tlLWRhc2hhcnJheTpub25lO2Rpc3BsYXk6aW5saW5lIgogICAgICAgICAgICAgICAgICAgICAgICAgICBkPSJtIC02NDkuMjE4NjgsMTI4MC4yMTg5IGMgMTg2Ljc4NzY5LC0wLjAxIDM3OC42MjMxMiwtMC40MDQyIDU2NS4zNjkzMTMsLTAuNDA0MiIKICAgICAgICAgICAgICAgICAgICAgICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc29kaXBvZGk6bm9kZXR5cGVzPSJjYyIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgPGcKICAgICAgICAgICAgICAgICAgICAgICAgICAgdHJhbnNmb3JtPSJtYXRyaXgoMC43NTY0MDc1NiwwLDAsMC43NTY0MDc1NiwtNDgzLjY4MDQ0LDg4NC40NjY3MykiCiAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJnMTE3MjQxIj4KICAgICAgICAgICAgICAgICAgICAgICAgICA8cGF0aAogICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNvZGlwb2RpOm5vZGV0eXBlcz0iY2NjY2NjY2NjY2NjYyIKICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZmlsbDojZTZlNmU2O2ZpbGwtb3BhY2l0eToxO3N0cm9rZTojODE4MTgxO3N0cm9rZS13aWR0aDoyLjk1NjAwMDA5O3N0cm9rZS1taXRlcmxpbWl0OjQ7c3Ryb2tlLW9wYWNpdHk6MTtzdHJva2UtZGFzaGFycmF5Om5vbmU7ZGlzcGxheTppbmxpbmUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZD0ibSA2Mi4zNTg3MywxNzAuMzA0OTYgYyA0Mi4yOTc5MSwzNS40OTIzIDY4LjUxNTI2LDg2LjE2MzY4IDczLjM5MDUxLDE0MC42NjM0MiBDIDgxLjI0OTMyLDMwNi4wOTMzIDMwLjU3Nzg0NCwyNzkuODc1OTMgLTQuOTE0MzQ1NywyMzcuNTc4IGMgMTAuNzk2MzkzLDYzLjk4Mzc5IDUuOTY0NDM4NCwxMjQuMDYwNSAwLDE4My44NTM5NCBDIDMwLjU3Nzg0NCwzNzkuMTM0MTQgODEuMjQ5MzIsMzUyLjg5ODM2IDEzNS43NDkyNCwzNDguMDIyOSBjIC00Ljg3NTI1LDU0LjQ5OTk5IC0zMS4wOTI2LDEwNS4xODk3OSAtNzMuMzkwNTEsMTQwLjY4MjIxIDY2LjI4MDE2LC04Ljc1MjgzIDEyNi4wMjk0LC02LjA3NjU5IDE4My44MzU1NiwwIC00Mi4yOTc4NSwtMzUuNDkyNDIgLTY4LjUxNTE3LC04Ni4xODIyMiAtNzMuMzkwNDMsLTE0MC42ODIyMSA1NC40OTk4Niw0Ljg3NTQ2IDEwNS4xODk2NSwzMS4xMTEyNCAxNDAuNjgxOTEsNzMuNDA5MDQgLTkuMTMyMzYsLTYxLjI4NDU2IC01LjYxODc5LC0xMjIuNTY5MzggMCwtMTgzLjg1Mzk0IC0zNS40OTIyNiw0Mi4yOTc5MyAtODYuMTgyMDUsNjguNTE1MyAtMTQwLjY4MTkxLDczLjM5MDM4IDQuODc1MjYsLTU0LjQ5OTc0IDMxLjA5MjU4LC0xMDUuMTcxMTIgNzMuMzkwNDMsLTE0MC42NjM0MiAtNjAuMTk3MTcsOC42NTA2MyAtMTIxLjUwNTEzLDguNDE1MjMgLTE4My44MzU1NiwwIHoiCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9InBhdGg4ODAzLTUiCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaW5rc2NhcGU6Y29ubmVjdG9yLWN1cnZhdHVyZT0iMCIgLz4KICAgICAgICAgICAgICAgICAgICAgICAgICA8cGF0aAogICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNvZGlwb2RpOm5vZGV0eXBlcz0iY2NjY2NjY2NjY2NjYyIKICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdHlsZT0iZmlsbDojZmZmZmZmO2ZpbGwtb3BhY2l0eToxO3N0cm9rZTpub25lO2Rpc3BsYXk6aW5saW5lIgogICAgICAgICAgICAgICAgICAgICAgICAgICAgIGQ9Ik0gODAuMDIwNTI4LDE3Ni43MjMzMSBDIDEwOS40ODY2NywxOTkuNDM4MzggMTQ5LjAzNTQyLDI3NS45MTgyNCAxNDMuMjY5ODcsMzE3LjUwMTM2IDEwOS4yMTI5NiwzMTguNDk2NSA0MS4yMzgyNDMsMzA0Ljk4MTMxIDAuNTc2NDg1NjgsMjUzLjI5NDUgMTcuMDczMDk0LDMxMC4yNDEwMiA2LjM1MDAxMDEsMzY4Ljk0ODc1IDQuNDA2OTM1Miw0MDEuNjA0NjEgMzIuMjE3MzQ4LDM2NC4zNDMyIDEwNS45NDA5MiwzMzMuOTEyNzcgMTQzLjI2OTg3LDM0MS4yMTYyNiBjIDQuODc4MDUsMzkuMDEwNCAtMjcuNTU2MzIsMTE0LjM3ODUyIC02MS4zMzQxMTcsMTM4Ljg3NDg0IDUyLjg5MDcwNywtMTAuOTE1MjEgMTExLjc0NDg4NywtNi44NzAzMiAxNDQuNDY3OTA3LC0wLjk1NzYxIC0zMi40ODI5MywtMTcuNzE4NjUgLTYzLjY1NDUxLC05MC41MzI2NyAtNTkuNDE4ODMsLTEzNy45MTcyMyA0Ni42NDM5NywtOC4zMzYxOSAxMjcuMDU4ODcsMzIuMzI1NDEgMTM4Ljg3NDY1LDY2LjEzNDAzIC05LjQ1ODk1LC0zNy45NTI3MSAtNi41NTMzMiwtMTEwLjI5ODc4IDAuOTU3NjEsLTE1My4wOTgxOCAtMjEuMjA1NDUsMjYuODgxOTggLTY4LjIxMDc3LDYyLjgzODMgLTEzOS44MzIyNiw2My4yNDkyNSAwLjc0ODMyLC01Mi4wNzI0OCAzNC4wODgyLC0xMTkuMzcxMDQgNjIuMjkxNjcsLTEzOS44MjA0MyAtNDMuNzAyMzUsMTIuODk1ODcgLTEwOS4wMTIzOCwxMS42NDA3OSAtMTQ5LjI1NTk3MiwtMC45NTc2MiB6IgogICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkPSJwYXRoODgwMy03IgogICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlua3NjYXBlOmNvbm5lY3Rvci1jdXJ2YXR1cmU9IjAiIC8+CiAgICAgICAgICAgICAgICAgICAgICAgIDwvZz4KICAgICAgICAgICAgICAgICAgICAgICAgPHBhdGgKICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQ9InBhdGg3MDE0LTYtNy0yOC0zLTItNC01LTEtMCIKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS45OTk5NzI0NjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtkaXNwbGF5OmlubGluZSIKICAgICAgICAgICAgICAgICAgICAgICAgICAgZD0ibSAtNjUwLjAzNzU1LDEyNTYuODU3MyBjIDEuMjMxNCw5MS4zMDYzIDUuOTE3ODUsMTYyLjU1NTQgNDYuODIxOCwyMTguMjY4MSAzLjIwMiw0LjM2MTIgNi41NDI1OCw4LjY0MzYgMTAuMDE5MTgsMTIuODUyIDE3LjkwNTk0LDIxLjY3NDggMzkuNDIwMDYsNDEuMzg2NyA2NC4xOTMzNSw1OS44MDQ0IDQ0LjQzMjkxLDMzLjAzMzUgOTkuMzUwMzYsNjEuOTAzNSAxNjIuNzM4NTUsOTAuNDY3NiAxMDUuNTkxNTUsLTQ3LjU4MiAxODcuNjc3ODEsLTk2LjAxMjYgMjM2Ljk1MDY2LC0xNjMuMTI0IDQwLjkwMzg4MSwtNTUuNzEyNiA0NS40NTg1NjEsLTEyNi45NjM2IDQ2LjgyMTU2MSwtMjE4LjI2ODEgMS40MTUxNCwtOTQuNzY2MyAyLjIzNjg1NywtMjE1LjkzNjcgMC43MzMwMDcsLTMxMC43MDU4IC0yMS43ODYxNDgsMTcuNzUxNzcgLTMyLjc5OTE1OCwxOS4zNDM4NSAtNDcuNDQ3MDQ4LDI2LjM4ODI1IC01My4xMjcwOCwxNy43NzY5OSAtMTE1Ljg4Mjc0LDI3Ljk4NTE1IC0xOTEuMzE0ODQsMCAtMTMuNzMwNTgsLTQuOTgyMjcgLTI5Ljg4MTQxLC0xNC44MDUwNSAtNDUuNDQ2NDQsLTIzLjQ1NjIzIC0xMy41MzI0NSw3LjgxODc1IC0yNy4zNDAzMiwxNS42Mzc0OSAtNDQuNzEzNDMsMjMuNDU2MjMgLTYwLjcwNDM0LDIzLjUwNzI5IC0xNjAuMTE5NzQsMzEuNzU2MzUgLTIzOS4zNTYxNSwtMjYuMzg4MjUgLTEuNzA2Nyw5NC43NjcgLTEuMjc4MSwyMTUuOTM5MSAtMmUtNCwzMTAuNzA1OCB6IgogICAgICAgICAgICAgICAgICAgICAgICAgICBzb2RpcG9kaTpub2RldHlwZXM9InNzc3Njc3NjY2NjY2NzIgogICAgICAgICAgICAgICAgICAgICAgICAgICBpbmtzY2FwZTpjb25uZWN0b3ItY3VydmF0dXJlPSIwIiAvPgogICAgICAgICAgICAgICAgICAgICAgPC9nPgogICAgICAgICAgICAgICAgICAgIDwvZz4KICAgICAgICAgICAgICAgICAgPC9nPgogICAgICAgICAgICAgICAgPC9nPgogICAgICAgICAgICAgIDwvZz4KICAgICAgICAgICAgPC9nPgogICAgICAgICAgPC9nPgogICAgICAgIDwvZz4KICAgICAgPC9nPgogICAgPC9nPgogIDwvZz4KICA8c3R5bGUKICAgICBpZD0ic3R5bGUzMzYzMSIKICAgICB0eXBlPSJ0ZXh0L2NzcyI+CgoJLnN0MHtmaWxsOiNBQTAwMDA7fQoJLnN0MXtmaWxsOiNBQTg4MDA7fQoJLnN0MntmaWxsOiMxRTZEM0U7c3Ryb2tlOiNENEFBMDA7c3Ryb2tlLXdpZHRoOjAuODg2MTtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0M3tmaWxsOiMxMTU2OTc7c3Ryb2tlOiNGRkZGRkY7c3Ryb2tlLXdpZHRoOjEuNjI0Mjt9Cgkuc3Q0e2ZpbGw6I0FGOTYzMTt9Cgkuc3Q1e2ZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4yMjU7fQoJLnN0NntmaWxsOm5vbmU7c3Ryb2tlOiM1NTQ0MDA7c3Ryb2tlLXdpZHRoOjEuNzg2O30KCS5zdDd7ZmlsbDojRkZGREY2O3N0cm9rZTojQUE4ODAwO3N0cm9rZS13aWR0aDoxLjg4MTQ7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDh7ZmlsbDojRTJDQTczO30KCS5zdDl7ZmlsbDojRTMwQjFEO30KCS5zdDEwe2ZpbGw6I0QxQjk0ODtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6Mi42ODA1O3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3QxMXthZG9iZS1rbm9ja291dDpmYWxzZTt9Cgkuc3QxMntmaWxsOiNFNEM3MkQ7fQoJLnN0MTN7ZmlsbDojRTZEMjg5O30KCS5zdDE0e2ZpbGw6I0U3Qzk1NDt9Cgkuc3QxNXtmaWxsOiNFOTAwMzE7fQoJLnN0MTZ7ZmlsbDojODA2NjAwO30KCS5zdDE3e2ZpbGw6bm9uZTtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6Mi4yMDAxO3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3QxOHtmaWxsOiNFOTQ1NDU7c3Ryb2tlOiNBQTAwMDA7c3Ryb2tlLXdpZHRoOjAuMTc5MztzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0MTl7ZmlsbDpub25lO3N0cm9rZTojODA2NjAwO3N0cm9rZS13aWR0aDoyLjY4MDU7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDIwe2ZpbGw6I0IxOTEyMzt9Cgkuc3QyMXtmaWxsOiM5OTAwMDA7c3Ryb2tlOiM0QzAwMDA7c3Ryb2tlLXdpZHRoOjIuMTc5MTt9Cgkuc3QyMnthZG9iZS1rbm9ja291dDp0cnVlO30KCS5zdDIze2ZpbGw6I0JBQTI0MDtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6MC42NjQ1O3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3QyNHtmaWxsOiNGNkUwN0M7c3Ryb2tlOiM4MDY2MDA7c3Ryb2tlLXdpZHRoOjAuNztzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0MjV7ZmlsbDpub25lO3N0cm9rZTojNUE1MDEzO3N0cm9rZS13aWR0aDoxLjM0MDE7fQoJLnN0MjZ7ZmlsbDojQzQwMDAwO3N0cm9rZTojQUE4ODAwO3N0cm9rZS13aWR0aDoxLjQ4ODc7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDI3e2ZpbGw6bm9uZTtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6MC41NDU0O3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3QyOHtmaWxsOiNFQ0VDRUM7fQoJLnN0Mjl7ZmlsbDojMUU2RDNFO30KCS5zdDMwe2ZpbGw6I0VFRTBBQzt9Cgkuc3QzMXtmaWxsOiNFOTQ1NDU7c3Ryb2tlOiNBQTAwMDA7c3Ryb2tlLXdpZHRoOjAuMjE4NDtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0MzJ7ZmlsbDojMkI5NkY2O3N0cm9rZTojRkZGRkZGO3N0cm9rZS13aWR0aDoxLjYyNDI7fQoJLnN0MzN7ZmlsbDojNTU0NDAwO30KCS5zdDM0e2ZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4xNjEzO3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3QzNXtmaWxsOm5vbmU7c3Ryb2tlOiNBMDJDMkM7c3Ryb2tlLXdpZHRoOjEuMTgwOTt9Cgkuc3QzNntmaWxsOiNCQTlBMkU7fQoJLnN0Mzd7ZmlsbDojQkFBMjQwO30KCS5zdDM4e2ZpbGw6IzhDMDAwMDt9Cgkuc3QzOXtmaWxsOiM1QTRDMTk7c3Ryb2tlOiMwMDAwMDA7c3Ryb2tlLXdpZHRoOjAuODIxNztzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0NDB7ZmlsbDojQkMwMDI4O30KCS5zdDQxe2ZpbGw6bm9uZTtzdHJva2U6IzRDMDAwMDtzdHJva2Utd2lkdGg6Mi4xNzkxO30KCS5zdDQye2ZpbGw6I0JDQTMzRTt9Cgkuc3Q0M3tmaWxsOiMyMjhGRTA7fQoJLnN0NDR7ZmlsbDojRjhFQ0E4O3N0cm9rZTojODA2NjAwO3N0cm9rZS13aWR0aDowLjc7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDQ1e2ZpbGw6I0U2RDI4OTtzdHJva2U6IzVCNEYwRjtzdHJva2Utd2lkdGg6MS41NjkxO30KCS5zdDQ2e2ZpbGw6I0Y2QzA1ODt9Cgkuc3Q0N3tmaWxsOiNGNkRDNzg7fQoJLnN0NDh7ZmlsbDojRjZFMDc4O30KCS5zdDQ5e2ZpbGw6bm9uZTtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6MC43O3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3Q1MHtmaWxsOiNGN0VCQTc7fQoJLnN0NTF7ZmlsbDojRjhFQ0E4O30KCS5zdDUye2ZpbGw6bm9uZTtzdHJva2U6IzVBNEYxMTtzdHJva2Utd2lkdGg6MS4zNDAxO30KCS5zdDUze2ZpbGw6bm9uZTtzdHJva2U6IzU4NEIxMztzdHJva2Utd2lkdGg6MS4zNDAxO30KCS5zdDU0e2ZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4xODA5O30KCS5zdDU1e2ZpbGw6bm9uZTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4zMjA0O30KCS5zdDU2e2ZpbGw6IzhDMDAwMDtzdHJva2U6IzRDMDAwMDtzdHJva2Utd2lkdGg6Mi4xNzkxO30KCS5zdDU3e2ZpbGw6I0MyQTk0NDt9Cgkuc3Q1OHtmaWxsOiNDMzA5MTg7fQoJLnN0NTl7ZmlsbDojRkZGRkZGO2Fkb2JlLWtub2Nrb3V0OmZhbHNlO30KCS5zdDYwe2ZpbGw6I0M1QTk0MTt9Cgkuc3Q2MXtmaWxsOiMyQjIyMDA7fQoJLnN0NjJ7ZmlsbDojOTkwMDAwO30KCS5zdDYze2ZpbGw6I0M5QUQxOTt9Cgkuc3Q2NHtmaWxsOiM0QzAwMDA7c3Ryb2tlOiM0QzAwMDA7c3Ryb2tlLXdpZHRoOjIuMTc5MTt9Cgkuc3Q2NXtmaWxsOm5vbmU7c3Ryb2tlOiNBMDg5MkM7c3Ryb2tlLXdpZHRoOjIuNDM2NDt9Cgkuc3Q2NntmaWxsOiNEMUI5NDg7c3Ryb2tlOiM4MDY2MDA7c3Ryb2tlLXdpZHRoOjIuNTAzNTtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0Njd7ZmlsbDojRkVFNDZFO30KCS5zdDY4e2ZpbGw6I0ZGMEEzRTt9Cgkuc3Q2OXtmaWxsOiNGRjk2QUQ7fQoJLnN0NzB7ZmlsbDojNjFCM0ZEO30KCS5zdDcxe2ZpbGw6I0ZGRTQ1NTt9Cgkuc3Q3MntmaWxsOiNGRkZGRkY7fQoJLnN0NzN7ZmlsbDojNjFCM0ZEO3N0cm9rZTojRkZGRkZGO3N0cm9rZS13aWR0aDoyLjQzNjQ7fQoJLnN0NzR7ZmlsbDojRTZEMjg5O3N0cm9rZTojNTU0NDAwO3N0cm9rZS13aWR0aDoxLjE2NDk7fQoJLnN0NzV7ZmlsbDojRTZEMjg5O3N0cm9rZTojNTU0NDAwO3N0cm9rZS13aWR0aDoxLjM0MDE7fQoJLnN0NzZ7ZmlsbDojMEY3QUJDO3N0cm9rZTojMDUzQzY4O3N0cm9rZS13aWR0aDoxLjMyMDQ7fQoJLnN0Nzd7ZmlsbDpub25lO30KCS5zdDc4e2ZpbGw6I0QwQjU0RTtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4yMjU7fQoJLnN0Nzl7ZmlsbDojRDBCNTRFO3N0cm9rZTojNTU0NDAwO3N0cm9rZS13aWR0aDoxLjE4MDk7fQoJLnN0ODB7ZmlsbDojQ0NDQ0NDO30KCS5zdDgxe2ZpbGw6I0Y2RTA3QztzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6MS4wODk2O3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3Q4MntmaWxsOiNCQUEyNDA7c3Ryb2tlOiM4MDY2MDA7c3Ryb2tlLXdpZHRoOjAuNztzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0ODN7ZmlsbDpub25lO3N0cm9rZTojODA4MDgwO3N0cm9rZS13aWR0aDoxLjU7fQoJLnN0ODR7ZmlsbDojRDFCNTQ4O3N0cm9rZTojNTU0NDAwO3N0cm9rZS13aWR0aDoxLjE2MTM7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDg1e2ZpbGw6bm9uZTtzdHJva2U6IzgwNjYwMDtzdHJva2Utd2lkdGg6MS4zNDAxO30KCS5zdDg2e2ZpbGw6I0RFQzM1RDtzdHJva2U6I0EwODkyQztzdHJva2Utd2lkdGg6MS4yMjU7fQoJLnN0ODd7ZmlsbDojRDBCNTRFO30KCS5zdDg4e2ZpbGw6I0QxQjU0ODt9Cgkuc3Q4OXtmaWxsOiNEMUI5NDg7fQoJLnN0OTB7ZmlsbDojRTdDOTU0O3N0cm9rZTojODA2NjAwO3N0cm9rZS13aWR0aDowLjc7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDkxe2ZpbGw6I0QzQjM0QTt9Cgkuc3Q5MntmaWxsOm5vbmU7c3Ryb2tlOiM4MDY2MDA7c3Ryb2tlLXdpZHRoOjAuNjY0NTtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0OTN7ZmlsbDpub25lO3N0cm9rZTojODAwMDAwO3N0cm9rZS13aWR0aDoxLjIyMTI7fQoJLnN0OTR7ZmlsbDojRTRDNzJEO3N0cm9rZTojODA2NjAwO3N0cm9rZS13aWR0aDowLjY4NzE7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDk1e2ZpbGw6I0Y2REM3ODtzdHJva2U6IzU1NDQwMDtzdHJva2Utd2lkdGg6MS4xNjEzO3N0cm9rZS1taXRlcmxpbWl0OjI4Mjt9Cgkuc3Q5NntmaWxsOiNBMzg2MUE7fQoJLnN0OTd7ZmlsbDojRDFCOTQ4O3N0cm9rZTojODA2NjAwO3N0cm9rZS13aWR0aDowLjY4NzE7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDk4e2ZpbGw6Izc1NjQxMjt9Cgkuc3Q5OXtmaWxsOiNFOTQ1NDU7c3Ryb2tlOiNBQTAwMDA7c3Ryb2tlLXdpZHRoOjIuMjAwMTtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoJLnN0MTAwe2ZpbGw6I0RFQzM1RDt9Cgkuc3QxMDF7ZmlsbDojRTk0NTQ1O3N0cm9rZTojQUEwMDAwO3N0cm9rZS13aWR0aDoyLjY4MDU7c3Ryb2tlLW1pdGVybGltaXQ6MjgyO30KCS5zdDEwMntmaWxsOm5vbmU7c3Ryb2tlOiM4MDY2MDA7c3Ryb2tlLXdpZHRoOjAuNjg3MTtzdHJva2UtbWl0ZXJsaW1pdDoyODI7fQoKPC9zdHlsZT4KPC9zdmc+Cg==" style="height:80px;width:auto">
-    <div style="text-align:left">
-      <div style="font-size:26px;font-family:'Lora',serif;color:#1A3A2A;font-weight:600">Bilancio Consuntivo ${year}</div>
-      <div style="font-size:14px;color:#4A4A4A;margin-top:2px">Parrocchia dei Mercedari</div>
-      <div style="font-size:13px;color:#7A7A7A">Parroco: Rev. Padre Peter Tajish</div>
-    </div>
-  </div>
-    <div style="font-size:14px;color:#7A7A7A;margin-top:4px">Parrocchia — Rendiconto annuale approvato</div>
-    <div style="font-size:12px;color:#7A7A7A">Generato il ${new Date().toLocaleDateString('it-IT')}</div>
-  </div>
-  <hr style="border:1px solid #D8CEB8;margin-bottom:2rem">
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:2rem">
-    <div style="background:#E8F5EA;border-radius:10px;padding:16px;text-align:center"><div style="font-size:11px;color:#1B5E20;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Entrate Totali</div><div style="font-size:24px;font-weight:700;color:#1B5E20;margin-top:4px">${fmt(tot_in)}</div></div>
-    <div style="background:#FDECEA;border-radius:10px;padding:16px;text-align:center"><div style="font-size:11px;color:#6B1A1A;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Uscite Totali</div><div style="font-size:24px;font-weight:700;color:#6B1A1A;margin-top:4px">${fmt(tot_out)}</div></div>
-    <div style="background:${bal>=0?'#E3F2FD':'#FDECEA'};border-radius:10px;padding:16px;text-align:center"><div style="font-size:11px;color:${bal>=0?'#1A4A7A':'#6B1A1A'};font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Saldo Netto</div><div style="font-size:24px;font-weight:700;color:${bal>=0?'#1A4A7A':'#6B1A1A'};margin-top:4px">${bal>=0?'+':''}${fmt(bal)}</div></div>
-  </div>
-  ${document.getElementById('preview-rendiconto').innerHTML}
-  <h3 style="font-family:'Lora',serif;font-size:14px;color:#1A3A2A;margin-top:2rem;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #D8CEB8">Elenco completo movimenti ${year}</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
-    <thead><tr style="background:#F5EFE0"><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8">Data</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8">Descrizione</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8">Categoria</th><th style="padding:5px 8px;text-align:right;border-bottom:1px solid #D8CEB8">Importo</th></tr></thead>
-    <tbody>${[...m].sort((a,b)=>a.data.localeCompare(b.data)).map(mv=>`<tr><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6">${fmtDate(mv.data)}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6">${mv.desc}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6;font-size:10px;color:#7A7A7A">${mv.cat}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6;text-align:right;font-weight:600;color:${mv.tipo==='entrata'?'#1B5E20':'#6B1A1A'}">${mv.tipo==='entrata'?'+':'-'}${fmt(mv.importo)}</td></tr>`).join('')}</tbody>
-  </table>`;
-
-  // Build the bilancio in a hidden div, capture as PDF
-  let bilDiv = document.getElementById('_bil_render');
-  if(!bilDiv){
-    bilDiv = document.createElement('div');
-    bilDiv.id = '_bil_render';
-    bilDiv.style.cssText = 'position:absolute;left:-9999px;top:0;width:900px;background:white;padding:40px;font-family:Georgia,serif;font-size:11px;color:#1C1C1C;line-height:1.5';
-    document.body.appendChild(bilDiv);
-  }
-  bilDiv.innerHTML = `
-    <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;padding-bottom:16px;border-bottom:2px solid #1A3A2A">
-      <img src="${document.querySelector('.header-brand img').src}" style="height:72px;width:auto">
-      <div>
-        <div style="font-size:22px;font-weight:700;color:#1A3A2A">Bilancio Consuntivo ${year}</div>
-        <div style="font-size:13px;color:#4A4A4A;margin-top:2px">Parrocchia dei Mercedari</div>
-        <div style="font-size:12px;color:#7A7A7A">Parroco: Rev. Padre Peter Tajish &nbsp;·&nbsp; Generato il ${new Date().toLocaleDateString('it-IT')}</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:20px">
-      <div style="flex:1;background:#E8F5EA;border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;font-weight:600;color:#1B5E20;text-transform:uppercase;letter-spacing:0.4px">Entrate totali</div>
-        <div style="font-size:22px;font-weight:700;color:#1B5E20;margin-top:4px">${fmt(tot_in)}</div>
-      </div>
-      <div style="flex:1;background:#FDECEA;border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;font-weight:600;color:#6B1A1A;text-transform:uppercase;letter-spacing:0.4px">Uscite totali</div>
-        <div style="font-size:22px;font-weight:700;color:#6B1A1A;margin-top:4px">${fmt(tot_out)}</div>
-      </div>
-      <div style="flex:1;background:${bal>=0?'#E3F2FD':'#FDECEA'};border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;font-weight:600;color:${bal>=0?'#1A4A7A':'#6B1A1A'};text-transform:uppercase;letter-spacing:0.4px">Saldo netto</div>
-        <div style="font-size:22px;font-weight:700;color:${bal>=0?'#1A4A7A':'#6B1A1A'};margin-top:4px">${bal>=0?'+':''}${fmt(bal)}</div>
-      </div>
-    </div>
-    <div style="font-size:13px;font-weight:600;color:#1A3A2A;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #D8CEB8">Dettaglio entrate per categoria</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
-      <thead><tr style="background:#F5EFE0">
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Categoria</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Importo</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">%</th>
-      </tr></thead>
-      <tbody>${catEntrate.filter(c=>din[c]).map(c=>`<tr><td style="padding:5px 8px;border-bottom:1px solid #EAE4D6">${c}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;font-weight:600;color:#1B5E20">${fmt(din[c])}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;color:#7A7A7A">${Math.round(din[c]/tot_in*100)}%</td></tr>`).join('')}
-      <tr style="background:#E8F5EA"><td style="padding:6px 8px;font-weight:700">Totale</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:#1B5E20">${fmt(tot_in)}</td><td style="padding:6px 8px;text-align:right;font-weight:700">100%</td></tr></tbody>
-    </table>
-    <div style="font-size:13px;font-weight:600;color:#1A3A2A;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #D8CEB8">Dettaglio uscite per categoria</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
-      <thead><tr style="background:#F5EFE0">
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Categoria</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Importo</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">%</th>
-      </tr></thead>
-      <tbody>${catUscite.filter(c=>dout[c]).map(c=>`<tr><td style="padding:5px 8px;border-bottom:1px solid #EAE4D6">${c}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;font-weight:600;color:#6B1A1A">${fmt(dout[c])}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;color:#7A7A7A">${Math.round(dout[c]/tot_out*100)}%</td></tr>`).join('')}
-      <tr style="background:#FDECEA"><td style="padding:6px 8px;font-weight:700">Totale</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:#6B1A1A">${fmt(tot_out)}</td><td style="padding:6px 8px;text-align:right;font-weight:700">100%</td></tr></tbody>
-    </table>
-    <div style="font-size:13px;font-weight:600;color:#1A3A2A;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #D8CEB8">Andamento mensile ${year}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
-      <thead><tr style="background:#F5EFE0">
-        <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Mese</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Entrate</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Uscite</th>
-        <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:10px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Saldo</th>
-      </tr></thead>
-      <tbody>${dm.filter(x=>x.ins>0||x.outs>0).map(x=>{const s=x.ins-x.outs;return`<tr><td style="padding:5px 8px;border-bottom:1px solid #EAE4D6">${moLabel[parseInt(x.mo)-1]} ${year}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;color:#1B5E20">${fmt(x.ins)}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;color:#6B1A1A">${fmt(x.outs)}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #EAE4D6;font-weight:600;color:${s>=0?'#1A4A7A':'#6B1A1A'}">${s>=0?'+':''}${fmt(s)}</td></tr>`}).join('')}</tbody>
-    </table>
-    <div style="font-size:13px;font-weight:600;color:#1A3A2A;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #D8CEB8">Elenco completo movimenti</div>
-    <table style="width:100%;border-collapse:collapse;font-size:10px">
-      <thead><tr style="background:#F5EFE0">
-        <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:9px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Data</th>
-        <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:9px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Descrizione</th>
-        <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #D8CEB8;font-size:9px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Categoria</th>
-        <th style="padding:5px 8px;text-align:right;border-bottom:1px solid #D8CEB8;font-size:9px;font-weight:600;color:#4A4A4A;text-transform:uppercase">Importo</th>
-      </tr></thead>
-      <tbody>${[...m].sort((a,b)=>a.data.localeCompare(b.data)).map(mv=>`<tr><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6">${fmtDate(mv.data)}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6">${mv.desc}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6;color:#7A7A7A">${mv.cat}</td><td style="padding:4px 8px;border-bottom:1px solid #EAE4D6;text-align:right;font-weight:600;color:${mv.tipo==='entrata'?'#1B5E20':'#6B1A1A'}">${mv.tipo==='entrata'?'+':'-'}${fmt(mv.importo)}</td></tr>`).join('')}</tbody>
-    </table>
-    <div style="margin-top:20px;padding-top:8px;border-top:1px solid #D8CEB8;font-size:9px;color:#7A7A7A;text-align:center">
-      Documento generato automaticamente — Parrocchia dei Mercedari · Rev. Padre Peter Tajish
-    </div>`;
-  exportToPdf('_bil_render', 'Bilancio_Consuntivo_' + year, document.querySelector('[onclick="exportBilancio()"]'));
+  var content = document.getElementById('preview-rendiconto');
+  if(!content){ alert("Vai prima nella sezione Esporta per generare l'anteprima."); return; }
+  openPrintPDF(content.innerHTML, 'Rendiconto_' + currentYear);
 }
 
 function exportExcel(){
@@ -1527,10 +1359,11 @@ function switchChurch(idx){
   var bar = document.getElementById('app-church-bar');
   var label = bar ? bar.querySelector('.church-label') : null;
   var barColors = ['#F5EDE8','#EFF6FF'];
+  var barBorders = ['#8B1A1A','#1E3A8A'];
   var labelColors = ['#6B1A1A','#1E3A8A'];
   var navAccents = ['#8B1A1A','#1E3A8A'];
   var mainBg = ['#FDF8F3','#F0F7FF'];
-  if(bar) bar.style.background = barColors[idx];
+  if(bar){ bar.style.background = barColors[idx]; bar.style.borderBottomColor = barBorders[idx]; }
   if(label) label.style.color = labelColors[idx];
   // Update nav active border color
   document.querySelectorAll('.nav-btn.active').forEach(function(b){
@@ -1557,7 +1390,7 @@ function switchChurch(idx){
   currentYear = Math.max(...getYears());
   initYears();
   document.getElementById('globalYear').value = currentYear;
-  document.getElementById('dash-title').textContent = 'Dashboard ' + currentYear;
+  document.getElementById('dash-title').textContent = 'Dashboard ' + currentYear + ' — ' + CHURCHES[currentChurch].short;
   document.getElementById('budget-title').textContent = 'Budget ' + currentYear;
   switchTab('dashboard');
   renderAll();
@@ -2228,6 +2061,7 @@ if(isLoggedIn()){
   var bar0 = document.getElementById('app-church-bar');
   if(bar0){
     bar0.style.background = '#F5EDE8';
+    bar0.style.borderBottomColor = '#8B1A1A';
     var lbl = bar0.querySelector('.church-label');
     if(lbl) lbl.style.color = '#6B1A1A';
   }
