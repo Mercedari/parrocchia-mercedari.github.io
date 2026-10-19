@@ -1358,13 +1358,9 @@ function switchChurch(idx){
   // Update bar background, label color and nav accent
   var bar = document.getElementById('app-church-bar');
   var label = bar ? bar.querySelector('.church-label') : null;
-  var barColors = ['#F5EDE8','#EFF6FF'];
-  var barBorders = ['#8B1A1A','#1E3A8A'];
-  var labelColors = ['#6B1A1A','#1E3A8A'];
   var navAccents = ['#8B1A1A','#1E3A8A'];
   var mainBg = ['#FDF8F3','#F0F7FF'];
-  if(bar){ bar.style.background = barColors[idx]; bar.style.borderBottomColor = barBorders[idx]; }
-  if(label) label.style.color = labelColors[idx];
+  // bar stays white - only buttons change
   // Update nav active border color
   document.querySelectorAll('.nav-btn.active').forEach(function(b){
     b.style.borderBottomColor = navAccents[idx];
@@ -2059,12 +2055,7 @@ if(isLoggedIn()){
   showApp();
   // Apply initial church colors
   var bar0 = document.getElementById('app-church-bar');
-  if(bar0){
-    bar0.style.background = '#F5EDE8';
-    bar0.style.borderBottomColor = '#8B1A1A';
-    var lbl = bar0.querySelector('.church-label');
-    if(lbl) lbl.style.color = '#6B1A1A';
-  }
+  // bar stays white, buttons handle their own color via CSS classes
 } else {
   hideApp();
   document.getElementById('login-screen').style.display = 'flex';
