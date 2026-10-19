@@ -2133,14 +2133,7 @@ function getCredentials(){
 
 
 
-function doLogout(){
-  if(!confirm("Vuoi uscire dall'applicazione?")) return;
-  sessionStorage.removeItem('parrocchia_session');
-  document.getElementById('login-user').value = '';
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-error').style.display = 'none';
-  hideApp();
-}
+
 
 function saveCredentials(){
   const newUser = document.getElementById('new-user').value.trim();
