@@ -225,6 +225,30 @@ tbody tr:last-child{border-bottom:none}
 .setup-steps .sn{background:var(--green-deep);color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
 #qr-canvas{display:block;margin:12px auto;border:4px solid var(--border-light);border-radius:8px}
 .secret-code{background:var(--parchment);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:monospace;font-size:14px;letter-spacing:3px;text-align:center;margin:8px 0;color:var(--green-deep);word-break:break-all}
+
+/* GESTIONE UTENTI */
+.user-card{background:var(--white);border:1px solid var(--border-light);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow)}
+.user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:white;flex-shrink:0}
+.user-info{flex:1}
+.user-name{font-size:14px;font-weight:600;color:var(--text-dark)}
+.user-role{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;padding:2px 8px;border-radius:4px;display:inline-block;margin-top:2px}
+.role-superadmin{background:#FFF0E6;color:#BA4A00}
+.role-admin{background:#E8F5EA;color:#1B5E20}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.perm-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-mid);padding:5px 8px;background:var(--parchment);border-radius:5px}
+.perm-toggle{width:32px;height:18px;border-radius:9px;border:none;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0}
+.perm-toggle.on{background:var(--green-mid)}
+.perm-toggle.off{background:#D1D5DB}
+.perm-toggle::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:white;top:2px;transition:left 0.2s}
+.perm-toggle.on::after{left:16px}
+.perm-toggle.off::after{left:2px}
+/* Login user selector */
+.user-select-bar{display:flex;flex-direction:column;gap:10px;margin-bottom:1.25rem}
+.user-select-btn{display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px solid var(--border);border-radius:10px;background:var(--white);cursor:pointer;transition:all 0.15s;width:100%}
+.user-select-btn:hover{border-color:var(--green-light);background:var(--parchment)}
+.user-select-btn.selected{border-color:var(--green-mid);background:#E8F5EA}
+.user-select-name{font-size:14px;font-weight:600;color:var(--text-dark);text-align:left}
+.user-select-role{font-size:11px;color:var(--text-light)}
 /* Credenziali in impostazioni */
 .cred-card{background:var(--white);border:1px solid var(--border-light);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:1.5rem}
 </style>
@@ -240,9 +264,9 @@ tbody tr:last-child{border-bottom:none}
     <div class="login-title">Parrocchia dei Mercedari</div>
     <div class="login-sub">Rev. Padre Peter Tajish · Gestione finanziaria</div>
     <div class="login-error" id="login-error">Username o password non corretti</div>
-    <div class="login-field">
-      <label>Username</label>
-      <input type="text" id="login-user" placeholder="Inserisci username" autocomplete="username" autocapitalize="none">
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Seleziona operatore</div>
+      <div class="user-select-bar" id="user-select-bar"></div>
     </div>
     <div class="login-field">
       <label>Password</label>
@@ -592,10 +616,19 @@ tbody tr:last-child{border-bottom:none}
   </div>
 
   
+  <!-- GESTIONE UTENTI -->
+  <div class="card" id="users-mgmt-card" style="margin-bottom:1.5rem;display:none">
+    <div class="card-header">
+      <span class="card-title">👥 Gestione utenti</span>
+      <span id="users-role-badge" style="font-size:11px;padding:3px 10px;border-radius:20px;background:#FFF0E6;color:#BA4A00;font-weight:600">⭐ Super Admin</span>
+    </div>
+    <div class="card-body" id="users-list"></div>
+  </div>
+
   <!-- CREDENZIALI -->
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-header">
-      <span class="card-title">🔐 Credenziali di accesso</span>
+      <span class="card-title">🔐 Le mie credenziali</span>
     </div>
     <div class="card-body">
       <div class="alert alert-info" style="margin-bottom:1rem">ℹ️ Modifica username e password di accesso all'applicazione. Le credenziali sono salvate localmente nel browser.</div>
@@ -736,7 +769,7 @@ function switchTab(t){
   if(t==='movimenti'){populateMonthFilter();populateCatFilter();renderTable();}
   if(t==='budget'){renderBudget();}
   if(t==='storico'){renderStorico();}  if(t==='esporta'){renderPreview();}
-  if(t==='dati'){refreshStorageInfo();populateEditYear();renderEditTable();}
+  if(t==='dati'){refreshStorageInfo();populateEditYear();renderEditTable();renderUsersPanel();}
 }
 
 // ==================== MOVIMENTI ====================
@@ -1477,6 +1510,7 @@ function showTotpScreen(){
 function backToLogin(){
   document.getElementById('totp-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  renderUserSelector();
   stopTotpTimer();
 }
 
@@ -1531,13 +1565,14 @@ async function verifyTotp(){
   const digits = document.querySelectorAll('.totp-digit');
   const code = Array.from(digits).map(d=>d.value).join('');
   if(code.length !== 6){ return; }
-  const creds = getCredentials();
-  const ok = await verifyTotpCode(creds.totpSecret, code);
+  if(!currentUser || !currentUser.totpSecret){ backToLogin(); return; }
+  const ok = await verifyTotpCode(currentUser.totpSecret, code);
   if(ok){
     stopTotpTimer();
-    sessionStorage.setItem('parrocchia_session','ok');
+    sessionStorage.setItem('parrocchia_session', currentUser.id);
     document.getElementById('totp-error').style.display='none';
     showApp();
+    applyPermissions();
     updateCredDisplay();
     setTimeout(renderCharts,100);
   } else {
@@ -1634,27 +1669,73 @@ function getCredentials(){
 }
 
 function isLoggedIn(){
-  return sessionStorage.getItem('parrocchia_session') === 'ok';
+  const sid = sessionStorage.getItem('parrocchia_session');
+  if(!sid) return false;
+  // Restore currentUser from session
+  if(!currentUser){
+    const users = getUsers();
+    currentUser = users.find(u => u.id === sid) || null;
+  }
+  return !!currentUser;
+}
+
+let selectedUserId = null;
+
+function renderUserSelector(){
+  const users = getUsers();
+  const bar = document.getElementById('user-select-bar');
+  if(!bar) return;
+  bar.innerHTML = users.map(function(u){
+    var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
+    var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    var roleText = u.role === 'superadmin' ? '⭐ Super Admin' : '👤 Amministratore';
+    var sel = (selectedUserId === u.id) ? ' selected' : '';
+    return '<button class="user-select-btn'+sel+'" onclick="selectUser(this,\''+u.id+'\')" type="button">'
+      +'<div class="user-avatar" style="background:'+avatarBg+';width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;flex-shrink:0">'+initials+'</div>'
+      +'<div style="text-align:left"><div class="user-select-name">'+u.name+'</div>'
+      +'<div class="user-select-role">'+roleText+'</div></div>'
+      +'</button>';
+  }).join('');
+  if(!selectedUserId && users.length > 0){ selectUser(null, users[0].id); }
+}
+
+
+function selectUser(el, uid){
+  selectedUserId = uid;
+  document.querySelectorAll('.user-select-btn').forEach(function(b){
+    b.classList.remove('selected');
+  });
+  if(el) el.classList.add('selected');
+  else{
+    document.querySelectorAll('.user-select-btn').forEach(function(b){
+      if(b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(uid) > -1) b.classList.add('selected');
+    });
+  }
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-pass').focus();
+  document.getElementById('login-error').style.display = 'none';
 }
 
 function doLogin(){
-  const user = document.getElementById('login-user').value.trim();
+  if(!selectedUserId){ alert('Seleziona un operatore.'); return; }
+  const users = getUsers();
+  const user = users.find(u => u.id === selectedUserId);
+  if(!user){ alert('Utente non trovato.'); return; }
   const pass = document.getElementById('login-pass').value;
-  const creds = getCredentials();
-  if(user === creds.username && pass === creds.password){
+  if(pass === user.password){
     document.getElementById('login-error').style.display = 'none';
-    if(creds.totpSecret){
-      // 2FA required
+    currentUser = user;
+    if(user.totpSecret){
       showTotpScreen();
     } else {
-      sessionStorage.setItem('parrocchia_session','ok');
+      sessionStorage.setItem('parrocchia_session', user.id);
       showApp();
+      applyPermissions();
       updateCredDisplay();
       setTimeout(renderCharts, 100);
     }
   } else {
-    const err = document.getElementById('login-error');
-    err.style.display = 'block';
+    document.getElementById('login-error').style.display = 'block';
     document.getElementById('login-pass').value = '';
     document.getElementById('login-pass').focus();
   }
@@ -1663,10 +1744,12 @@ function doLogin(){
 function doLogout(){
   if(!confirm("Vuoi uscire dall'applicazione?")) return;
   sessionStorage.removeItem('parrocchia_session');
-  document.getElementById('login-user').value = '';
+  currentUser = null;
+  selectedUserId = null;
   document.getElementById('login-pass').value = '';
   document.getElementById('login-error').style.display = 'none';
   hideApp();
+  renderUserSelector();
 }
 
 function saveCredentials(){
@@ -2052,8 +2135,10 @@ headerRight.appendChild(ind);
 setTimeout(renderCharts,150);
 
 // Show login if not authenticated — app is hidden by default in HTML
+renderUserSelector();
 if(isLoggedIn()){
   showApp();
+  applyPermissions();
   // Apply initial church colors
   var bar0 = document.getElementById('app-church-bar');
   // bar stays white, buttons handle their own color via CSS classes
