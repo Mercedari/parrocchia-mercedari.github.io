@@ -2202,46 +2202,47 @@ function pianta_show(n){
 // ==================== INIT ====================
 function renderAll(){renderMetrics();renderCharts();}
 
-// Load from localStorage first
-const savedAt=loadFromStorage();
-// Fresh start - save empty db if nothing saved yet
-if(!savedAt){
-  saveToStorage();
-}
+document.addEventListener('DOMContentLoaded', function(){
+  // Load from localStorage first
+  var savedAt=loadFromStorage();
+  if(!savedAt){ saveToStorage(); }
 
-initYears();
-// Set currentYear to latest year available
-currentYear=Math.max(...getYears());
-document.getElementById('globalYear').value=currentYear;
-document.getElementById('dash-title').textContent='Dashboard '+currentYear;
-document.getElementById('budget-title').textContent='Budget '+currentYear;
+  initYears();
+  currentYear=Math.max(...getYears());
+  var gyEl=document.getElementById('globalYear');
+  if(gyEl) gyEl.value=currentYear;
+  var dtEl=document.getElementById('dash-title');
+  if(dtEl) dtEl.textContent='Dashboard '+currentYear;
+  var btEl=document.getElementById('budget-title');
+  if(btEl) btEl.textContent='Budget '+currentYear;
 
-populateCat();
-document.getElementById('f-data').value=new Date().toISOString().slice(0,10);
+  populateCat();
+  var fdEl=document.getElementById('f-data');
+  if(fdEl) fdEl.value=new Date().toISOString().slice(0,10);
 
-// Add save indicator to header
-const headerRight=document.querySelector('.year-selector');
-const ind=document.createElement('span');
-ind.id='save-indicator';
-ind.style.cssText='font-size:11px;opacity:0.6;margin-left:12px';
-ind.textContent=savedAt?'✅ Dati caricati':'📋 Demo';
-headerRight.appendChild(ind);
+  // Add save indicator to header
+  var headerRight=document.querySelector('.year-selector');
+  if(headerRight){
+    var ind=document.createElement('span');
+    ind.id='save-indicator';
+    ind.style.cssText='font-size:11px;opacity:0.6;margin-left:12px';
+    ind.textContent=savedAt?'Salvato':'Nuovo';
+    headerRight.appendChild(ind);
+  }
 
-setTimeout(renderCharts,150);
-
-// Show login if not authenticated — app is hidden by default in HTML
-renderUserSelector();
-if(isLoggedIn()){
-  showApp();
-  applyPermissions();
-  // Apply initial church colors
-  var bar0 = document.getElementById('app-church-bar');
-  // bar stays white, buttons handle their own color via CSS classes
-} else {
-  hideApp();
-  document.getElementById('login-screen').style.display = 'flex';
-}
-updateCredDisplay();
+  // Show login or app
+  renderUserSelector();
+  if(isLoggedIn()){
+    showApp();
+    applyPermissions();
+  } else {
+    hideApp();
+    var ls=document.getElementById('login-screen');
+    if(ls) ls.style.display='flex';
+  }
+  updateCredDisplay();
+  setTimeout(renderCharts,150);
+});
 
 </script>
 
