@@ -228,29 +228,6 @@ tbody tr:last-child{border-bottom:none}
 </style>
 </head>
 <body>
-<div id="debug-overlay" style="display:none;position:fixed;inset:0;background:#1A3A2A;z-index:99999;padding:20px;font-family:monospace;color:white;font-size:12px;overflow:auto">
-  <div style="font-size:16px;font-weight:bold;margin-bottom:10px">⚠️ Errore rilevato</div>
-  <pre id="debug-msg"></pre>
-  <div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.6)">Mostra questo schermo allo sviluppatore</div>
-</div>
-<script>
-window.addEventListener('error', function(e){
-  var el = document.getElementById('debug-overlay');
-  var msg = document.getElementById('debug-msg');
-  if(el && msg){
-    msg.textContent = 'Messaggio: ' + e.message + '\nFile: ' + e.filename + '\nRiga: ' + e.lineno + '\nColonna: ' + e.colno + (e.error ? '\nStack: ' + e.error.stack : '');
-    el.style.display = 'block';
-  }
-}, true);
-window.addEventListener('unhandledrejection', function(e){
-  var el = document.getElementById('debug-overlay');
-  var msg = document.getElementById('debug-msg');
-  if(el && msg){
-    msg.textContent = 'Promise Error: ' + (e.reason ? (e.reason.message || e.reason) : 'sconosciuto');
-    el.style.display = 'block';
-  }
-});
-</script>
 
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div id="login-screen" style="display:none">
@@ -1627,7 +1604,8 @@ function showApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('totp-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
-  document.getElementById('app-church-bar').style.display = 'flex';
+  var cb = document.getElementById('app-church-bar');
+  if(cb) cb.style.display = 'flex';
   document.getElementById('app-nav').style.display = 'flex';
   document.getElementById('app-main').style.display = 'block';
 }
@@ -1635,7 +1613,8 @@ function hideApp(){
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('totp-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'none';
-  document.getElementById('app-church-bar').style.display = 'none';
+  var cb = document.getElementById('app-church-bar');
+  if(cb) cb.style.display = 'none';
   document.getElementById('app-nav').style.display = 'none';
   document.getElementById('app-main').style.display = 'none';
 }
@@ -1933,6 +1912,8 @@ function showApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('totp-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
+  var cb = document.getElementById('app-church-bar');
+  if(cb) cb.style.display = 'flex';
   document.getElementById('app-nav').style.display = 'flex';
   document.getElementById('app-main').style.display = 'block';
 }
@@ -1940,6 +1921,8 @@ function hideApp(){
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('totp-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'none';
+  var cb = document.getElementById('app-church-bar');
+  if(cb) cb.style.display = 'none';
   document.getElementById('app-nav').style.display = 'none';
   document.getElementById('app-main').style.display = 'none';
 }
