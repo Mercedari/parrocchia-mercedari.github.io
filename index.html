@@ -17,6 +17,10 @@
 // ==================== MULTI-UTENTE ====================
 var currentUser = null;
 var selectedUserId = null;
+var ghBackupEnabled = false;
+var GH_TOKEN_KEY = 'parrocchia_gh_token';
+var GH_REPO = 'Mercedari/parrocchia-mercedari.github.io';
+var GH_BACKUP_FILE = 'backup_dati.json';
 var USERS_KEY = 'parrocchia_users_v1';
 var ALL_PERMS = ['movimenti','elimina','budget','esporta','gestione_dati','credenziali'];
 
@@ -566,6 +570,30 @@ tbody tr:last-child{border-bottom:none}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem">
 
     <div class="card">
+  <!-- GITHUB BACKUP -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header">
+      <span class="card-title">☁️ Backup automatico su GitHub</span>
+      <span id="gh-backup-status" class="backup-status backup-pending">⏳ Non configurato</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:12px">
+        Inserisci il tuo <strong>Personal Access Token</strong> GitHub per abilitare il backup automatico ad ogni movimento salvato.
+      </p>
+      <div class="login-field" style="margin-bottom:10px">
+        <label>GitHub Token (ghp_...)</label>
+        <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxx" style="font-family:monospace;font-size:13px" autocomplete="off" autocapitalize="none">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveGhToken()">💾 Salva token</button>
+        <button class="btn btn-outline btn-sm" onclick="testGhBackup()">🧪 Testa connessione</button>
+        <button class="btn btn-outline btn-sm" onclick="manualGhBackup()">☁️ Backup ora</button>
+        <button class="btn btn-outline btn-sm" style="color:var(--red-mid);border-color:var(--red-mid)" onclick="removeGhToken()">🗑️ Rimuovi</button>
+      </div>
+      <div id="gh-backup-log" style="margin-top:10px;font-size:12px;color:var(--text-light);display:none"></div>
+    </div>
+  </div>
+
       <div class="card-header"><span class="card-title">📤 Esporta dati (backup)</span></div>
       <div class="card-body">
         <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6">Scarica un file <strong>.json</strong> con tutti i dati: movimenti di tutti gli anni, budget e impostazioni. Usa questo file per fare backup o per trasferire i dati su un altro PC.</p>
@@ -1180,6 +1208,55 @@ function exportExcel(){
 
 // ==================== LOCALSTORAGE ====================
 // LS_KEY now handled by getChurchKey()
+
+// ==================== GITHUB BACKUP ====================
+function getGhToken(){try{return localStorage.getItem(GH_TOKEN_KEY)||'';}catch(e){return '';}}
+function saveGhToken(){
+  var token=document.getElementById('gh-token-input').value.trim();
+  if(!token){alert('Inserisci il token.');return;}
+  if(!token.startsWith('ghp_')&&!token.startsWith('github_pat_')){alert('Token non valido. Deve iniziare con ghp_');return;}
+  try{localStorage.setItem(GH_TOKEN_KEY,token);document.getElementById('gh-token-input').value='';ghBackupEnabled=true;updateGhStatus('ok','✅ Token salvato');alert('Token salvato! Backup automatico attivo.');}catch(e){alert('Errore salvataggio token.');}
+}
+function removeGhToken(){
+  try{localStorage.removeItem(GH_TOKEN_KEY);}catch(e){}
+  ghBackupEnabled=false;updateGhStatus('pending','⏳ Non configurato');
+  var inp=document.getElementById('gh-token-input');if(inp)inp.value='';
+}
+function updateGhStatus(type,msg){
+  var el=document.getElementById('gh-backup-status');if(!el)return;
+  el.className='backup-status backup-'+(type==='ok'?'ok':type==='err'?'err':'pending');
+  el.textContent=msg;
+}
+function logGh(msg){var el=document.getElementById('gh-backup-log');if(!el)return;el.style.display='block';el.textContent=msg;}
+async function doGhBackup(silent){
+  var token=getGhToken();
+  if(!token){if(!silent)alert('Nessun token. Vai in Gestione dati.');return;}
+  var payload={version:'2.1',timestamp:new Date().toISOString()};
+  var savedChurch=currentChurch;
+  for(var i=0;i<2;i++){currentChurch=i;var raw=localStorage.getItem(getChurchKey());if(raw)try{payload['church_'+i]=JSON.parse(raw);}catch(e){}}
+  currentChurch=savedChurch;
+  var content=btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
+  try{
+    if(!silent)updateGhStatus('pending','⏳ In corso...');
+    var shaRes=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_BACKUP_FILE,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+    var body={message:'Backup '+new Date().toLocaleString('it-IT'),content:content};
+    if(shaRes.ok){var sd=await shaRes.json();if(sd.sha)body.sha=sd.sha;}
+    var res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_BACKUP_FILE,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(res.ok){var now=new Date().toLocaleTimeString('it-IT');updateGhStatus('ok','✅ Backup '+now);if(!silent)logGh('✅ Backup completato alle '+now);}
+    else{updateGhStatus('err','❌ Errore');if(!silent)try{var e=await res.json();logGh('❌ '+(e.message||res.status));}catch(x){logGh('❌ Errore '+res.status);}}
+  }catch(e){updateGhStatus('err','❌ Connessione fallita');if(!silent)logGh('❌ '+e.message);}
+}
+function testGhBackup(){doGhBackup(false);}
+function manualGhBackup(){doGhBackup(false);}
+function renderUsersPanel(){
+  var card=document.getElementById('users-mgmt-card');
+  if(card) card.style.display=(currentUser&&currentUser.role==='superadmin')?'block':'none';
+}
+function initGhBackup(){
+  var token=getGhToken();
+  if(token){ghBackupEnabled=true;updateGhStatus('ok','✅ Attivo');var inp=document.getElementById('gh-token-input');if(inp)inp.placeholder='Token salvato';}
+}
+
 
 function saveToStorage(){
   try{
