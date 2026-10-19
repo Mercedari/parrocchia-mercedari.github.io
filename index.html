@@ -1682,35 +1682,31 @@ function isLoggedIn(){
 let selectedUserId = null;
 
 function renderUserSelector(){
-  const users = getUsers();
-  const bar = document.getElementById('user-select-bar');
+  var users = getUsers();
+  var bar = document.getElementById('user-select-bar');
   if(!bar) return;
   bar.innerHTML = users.map(function(u){
     var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
     var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-    var roleText = u.role === 'superadmin' ? '⭐ Super Admin' : '👤 Amministratore';
+    var roleText = u.role === 'superadmin' ? '&#11088; Super Admin' : '&#128100; Amministratore';
     var sel = (selectedUserId === u.id) ? ' selected' : '';
-    return '<button class="user-select-btn'+sel+'" onclick="selectUser(this,\''+u.id+'\')" type="button">'
-      +'<div class="user-avatar" style="background:'+avatarBg+';width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;flex-shrink:0">'+initials+'</div>'
-      +'<div style="text-align:left"><div class="user-select-name">'+u.name+'</div>'
-      +'<div class="user-select-role">'+roleText+'</div></div>'
+    return '<button class="user-select-btn'+sel+'" id="ubtn-'+u.id+'" onclick="selectUser(\'' +u.id+ '\')" type="button">'
+      +'<div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;flex-shrink:0;background:'+avatarBg+'">'+initials+'</div>'
+      +'<div style="text-align:left"><div style="font-size:14px;font-weight:600;color:var(--text-dark)">'+u.name+'</div>'
+      +'<div style="font-size:11px;color:var(--text-light)">'+roleText+'</div></div>'
       +'</button>';
   }).join('');
-  if(!selectedUserId && users.length > 0){ selectUser(null, users[0].id); }
+  if(!selectedUserId && users.length > 0){ selectUser(users[0].id); }
 }
 
 
-function selectUser(el, uid){
+function selectUser(uid){
   selectedUserId = uid;
   document.querySelectorAll('.user-select-btn').forEach(function(b){
     b.classList.remove('selected');
   });
-  if(el) el.classList.add('selected');
-  else{
-    document.querySelectorAll('.user-select-btn').forEach(function(b){
-      if(b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(uid) > -1) b.classList.add('selected');
-    });
-  }
+  var btn = document.getElementById('ubtn-'+uid);
+  if(btn) btn.classList.add('selected');
   document.getElementById('login-pass').value = '';
   document.getElementById('login-pass').focus();
   document.getElementById('login-error').style.display = 'none';
@@ -2007,32 +2003,9 @@ function getCredentials(){
   return {username: DEFAULT_USER, password: DEFAULT_PASS};
 }
 
-function isLoggedIn(){
-  return sessionStorage.getItem('parrocchia_session') === 'ok';
-}
 
-function doLogin(){
-  const user = document.getElementById('login-user').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  const creds = getCredentials();
-  if(user === creds.username && pass === creds.password){
-    document.getElementById('login-error').style.display = 'none';
-    if(creds.totpSecret){
-      // 2FA required
-      showTotpScreen();
-    } else {
-      sessionStorage.setItem('parrocchia_session','ok');
-      showApp();
-      updateCredDisplay();
-      setTimeout(renderCharts, 100);
-    }
-  } else {
-    const err = document.getElementById('login-error');
-    err.style.display = 'block';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
-  }
-}
+
+
 
 function doLogout(){
   if(!confirm("Vuoi uscire dall'applicazione?")) return;
