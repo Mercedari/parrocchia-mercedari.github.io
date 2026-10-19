@@ -196,11 +196,11 @@ tbody tr:last-child{border-bottom:none}
 
 
 /* CHURCH SWITCHER */
-.church-bar{background:#0F2518;padding:6px 2rem;display:flex;align-items:center;gap:10px;overflow-x:auto;border-bottom:2px solid var(--gold)}
-.church-btn{padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55);white-space:nowrap;transition:all 0.2s;font-family:"Source Sans 3",sans-serif}
-.church-btn:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.8)}
-.church-btn.active{background:var(--gold);color:#1A3A2A;border-color:var(--gold);box-shadow:0 2px 8px rgba(184,150,12,0.4)}
-.church-label{font-size:11px;color:rgba(255,255,255,0.5);margin-right:4px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px}
+.church-bar{background:var(--white);padding:6px 2rem;display:flex;align-items:center;gap:10px;overflow-x:auto;border-bottom:1px solid var(--border-light)}
+.church-btn{padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--white);color:var(--text-light);white-space:nowrap;transition:all 0.2s;font-family:"Source Sans 3",sans-serif}
+.church-btn:hover{background:var(--parchment);color:var(--green-deep);border-color:var(--green-light)}
+.church-btn.active{background:var(--green-deep);color:var(--white);border-color:var(--green-deep);box-shadow:0 2px 6px rgba(26,58,42,0.25)}
+.church-label{font-size:11px;color:var(--text-light);margin-right:4px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
 /* 2FA styles */
 #totp-screen{position:fixed;inset:0;background:var(--green-deep);z-index:9998;display:none;align-items:center;justify-content:center;padding:1.5rem}
 .totp-box{background:var(--white);border-radius:16px;padding:2rem;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.35)}
@@ -269,7 +269,7 @@ tbody tr:last-child{border-bottom:none}
 
 <div class="church-bar" id="app-church-bar" style="display:none">
   <span class="church-label">Chiesa:</span>
-  <button class="church-btn active" id="cb-0" onclick="switchChurch(0)">✝ Mercedari</button>
+  <button class="church-btn active-0" id="cb-0" onclick="switchChurch(0)">✝ Mercedari</button>
   <button class="church-btn" id="cb-1" onclick="switchChurch(1)">✝ SS. Francesco e Matteo</button>
 </div>
 <div class="nav" id="app-nav" style="display:none">
@@ -1516,11 +1516,20 @@ function getChurchKey(){ return LS_KEYS[currentChurch]; }
 
 function switchChurch(idx){
   if(idx === currentChurch) return;
-  // Save current church data first
   saveToStorage();
   currentChurch = idx;
-  // Update buttons
-  document.querySelectorAll('.church-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  // Update button active class
+  document.querySelectorAll('.church-btn').forEach(function(b,i){
+    b.classList.remove('active-0','active-1');
+    if(i===idx) b.classList.add('active-'+idx);
+  });
+  // Update bar background and label color
+  var bar = document.getElementById('app-church-bar');
+  var label = bar ? bar.querySelector('.church-label') : null;
+  var barColors = ['#F5EDE8','#EFF6FF'];
+  var labelColors = ['#6B1A1A','#1E3A8A'];
+  if(bar) bar.style.background = barColors[idx];
+  if(label) label.style.color = labelColors[idx];
   // Update header subtitle
   const sub = document.querySelector('.header-sub');
   if(sub) sub.textContent = CHURCHES[idx].name + ' · Gestione finanziaria';
