@@ -1427,6 +1427,226 @@ function switchChurch(idx){
   updateCredDisplay();
 }
 
+// ==================== MULTI-UTENTE CORE ====================
+const USERS_KEY = 'parrocchia_users_v1';
+const ALL_PERMS = ['movimenti','elimina','budget','esporta','gestione_dati','credenziali'];
+const PERM_LABELS = {
+  movimenti: 'Aggiunge/modifica movimenti',
+  elimina: 'Elimina movimenti',
+  budget: 'Gestione budget',
+  esporta: 'Esporta CSV e stampa',
+  gestione_dati: 'Gestione dati e backup',
+  credenziali: 'Modifica credenziali'
+};
+
+function getUsers(){
+  try{
+    var raw = localStorage.getItem(USERS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return [
+    {id:'luca', name:'Luca', role:'superadmin', password:'luca2025', totpSecret:null, permissions: ALL_PERMS.slice()},
+    {id:'peter', name:'Padre Peter', role:'admin', password:'parrocchia2025', totpSecret:null, permissions: ALL_PERMS.slice()}
+  ];
+}
+
+function saveUsers(users){
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function hasPerm(perm){
+  if(!currentUser) return false;
+  if(currentUser.role === 'superadmin') return true;
+  return currentUser.permissions.indexOf(perm) >= 0;
+}
+
+function applyPermissions(){
+  document.querySelectorAll('.nav-btn').forEach(function(btn){
+    var oc = btn.getAttribute('onclick') || '';
+    if(oc.indexOf('budget') > -1) btn.style.display = hasPerm('budget') ? '' : 'none';
+    if(oc.indexOf('esporta') > -1) btn.style.display = hasPerm('esporta') ? '' : 'none';
+    if(oc.indexOf("'dati'") > -1) btn.style.display = hasPerm('gestione_dati') ? '' : 'none';
+  });
+}
+
+
+function renderUsersPanel(){
+  var card = document.getElementById('users-mgmt-card');
+  var list = document.getElementById('users-list');
+  if(!card || !list) return;
+  if(!currentUser || currentUser.role !== 'superadmin'){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  var users = getUsers();
+  var html2 = '';
+  users.forEach(function(u){
+    var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
+    var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    var roleLabel = u.role === 'superadmin'
+      ? '<span style="font-size:11px;background:#FFF0E6;color:#BA4A00;padding:2px 8px;border-radius:4px;font-weight:600">Super Admin</span>'
+      : '<span style="font-size:11px;background:#E8F5EA;color:#1B5E20;padding:2px 8px;border-radius:4px;font-weight:600">Admin</span>';
+    html2 += '<div style="background:var(--white);border:1px solid var(--border-light);border-radius:10px;padding:14px;margin-bottom:10px">';
+    html2 += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
+    html2 += '<div style="width:40px;height:40px;border-radius:50%;background:'+avatarBg+';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:white">'+initials+'</div>';
+    html2 += '<div><div style="font-size:14px;font-weight:600">'+u.name+'</div>'+roleLabel+'</div></div>';
+    html2 += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+    ALL_PERMS.forEach(function(p){
+      var has = u.role==='superadmin' || u.permissions.indexOf(p)>=0;
+      var dis = u.role==='superadmin';
+      var toggleStyle = 'width:32px;height:18px;border-radius:9px;border:none;cursor:'+(dis?'default':'pointer')+';position:relative;transition:background 0.2s;flex-shrink:0;background:'+(has?'var(--green-mid)':'#D1D5DB')+';opacity:'+(dis?'0.4':'1');
+      html2 += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 8px;background:var(--parchment);border-radius:5px">';
+      if(!dis){
+        html2 += '<button data-uid="'+u.id+'" data-perm="'+p+'" data-on="'+(has?'1':'0')+'" style="'+toggleStyle+'" onclick="togglePerm(this)"><span style="position:absolute;width:14px;height:14px;border-radius:50%;background:white;top:2px;left:'+(has?'16':'2')+'px;transition:left 0.2s"></span></button>';
+      } else {
+        html2 += '<div style="'+toggleStyle+';display:inline-block"><span style="position:absolute;width:14px;height:14px;border-radius:50%;background:white;top:2px;left:'+(has?'16':'2')+'px"></span></div>';
+      }
+      html2 += '<span>'+PERM_LABELS[p]+'</span></div>';
+    });
+    html2 += '</div>';
+    if(u.id !== currentUser.id){
+      html2 += '<div style="margin-top:10px;display:flex;gap:8px"><input type="password" id="pwd-'+u.id+'" placeholder="Nuova password per '+u.name+'" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px"><button class="btn btn-outline btn-sm" data-uid="'+u.id+'" onclick="changeUserPwd(this.dataset.uid)">Cambia</button></div>';
+    }
+    html2 += '</div>';
+  });
+  list.innerHTML = html2;
+}
+
+
+function togglePerm(btn){
+  var userId = btn.dataset.uid;
+  var perm = btn.dataset.perm;
+  var isOn = btn.dataset.on === '1';
+  var users = getUsers();
+  var user = users.find(function(u){return u.id===userId;});
+  if(!user || user.role==='superadmin') return;
+  var idx = user.permissions.indexOf(perm);
+  if(isOn && idx >= 0){
+    user.permissions.splice(idx,1);
+    btn.style.background = '#D1D5DB';
+    btn.dataset.on = '0';
+    var knob = btn.querySelector('span'); if(knob) knob.style.left = '2px';
+  } else if(!isOn && idx < 0){
+    user.permissions.push(perm);
+    btn.style.background = 'var(--green-mid)';
+    btn.dataset.on = '1';
+    var knob = btn.querySelector('span'); if(knob) knob.style.left = '16px';
+  }
+  saveUsers(users);
+}
+
+function changeUserPwd(userId){
+  var users = getUsers();
+  var user = users.find(function(u){return u.id===userId;});
+  var inp = document.getElementById('pwd-'+userId);
+  if(!user||!inp) return;
+  var newPwd = inp.value.trim();
+  if(newPwd.length < 4){ alert('Password troppo corta (min 4 caratteri).'); return; }
+  user.password = newPwd;
+  saveUsers(users);
+  inp.value = '';
+  alert('Password di '+user.name+' aggiornata!');
+}
+
+function renderUserSelector(){
+  var users = getUsers();
+  var bar = document.getElementById('user-select-bar');
+  if(!bar) return;
+  bar.innerHTML = users.map(function(u){
+    var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
+    var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    var roleText = u.role === 'superadmin' ? '&#11088; Super Admin' : '&#128100; Amministratore';
+    var sel = (selectedUserId === u.id) ? ' selected' : '';
+    return '<button class="user-select-btn'+sel+'" id="ubtn-'+u.id+'" onclick="selectUser(\'' +u.id+ '\')" type="button">'
+      +'<div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;flex-shrink:0;background:'+avatarBg+'">'+initials+'</div>'
+      +'<div style="text-align:left"><div style="font-size:14px;font-weight:600;color:var(--text-dark)">'+u.name+'</div>'
+      +'<div style="font-size:11px;color:var(--text-light)">'+roleText+'</div></div>'
+      +'</button>';
+  }).join('');
+  if(!selectedUserId && users.length > 0){ selectUser(users[0].id); }
+}
+
+
+function selectUser(uid){
+  selectedUserId = uid;
+  document.querySelectorAll('.user-select-btn').forEach(function(b){
+    b.classList.remove('selected');
+  });
+  var btn = document.getElementById('ubtn-'+uid);
+  if(btn) btn.classList.add('selected');
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-pass').focus();
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function doLogin(){
+  if(!selectedUserId){ alert('Seleziona un operatore.'); return; }
+  const users = getUsers();
+  const user = users.find(u => u.id === selectedUserId);
+  if(!user){ alert('Utente non trovato.'); return; }
+  const pass = document.getElementById('login-pass').value;
+  if(pass === user.password){
+    document.getElementById('login-error').style.display = 'none';
+    currentUser = user;
+    if(user.totpSecret){
+      showTotpScreen();
+    } else {
+      sessionStorage.setItem('parrocchia_session', user.id);
+      showApp();
+      applyPermissions();
+      updateCredDisplay();
+      setTimeout(renderCharts, 100);
+    }
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+function doLogout(){
+  if(!confirm("Vuoi uscire dall'applicazione?")) return;
+  sessionStorage.removeItem('parrocchia_session');
+  currentUser = null;
+  selectedUserId = null;
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  hideApp();
+  renderUserSelector();
+}
+
+function saveCredentials(){
+  const newUser = document.getElementById('new-user').value.trim();
+  const newPass = document.getElementById('new-pass').value;
+  const newPass2 = document.getElementById('new-pass2').value;
+  if(!newUser){ alert('Inserisci il nuovo username.'); return; }
+  if(newPass.length < 4){ alert('La password deve essere di almeno 4 caratteri.'); return; }
+  if(newPass !== newPass2){ alert('Le due password non coincidono.'); return; }
+  localStorage.setItem(AUTH_KEY, JSON.stringify({username: newUser, password: newPass}));
+  document.getElementById('new-user').value = '';
+  document.getElementById('new-pass').value = '';
+  document.getElementById('new-pass2').value = '';
+  updateCredDisplay();
+  alert('✅ Credenziali aggiornate! Nuovo username: ' + newUser + '. Ricorda di annotare la nuova password.');
+}
+
+function updateCredDisplay(){
+  const el = document.getElementById('cur-user-display');
+  if(el){ el.value = getCredentials().username; }
+  update2FAStatus();
+}
+
+// Allow Enter key on login form
+document.addEventListener('DOMContentLoaded', function(){
+  ['login-user','login-pass'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  });
+});
+
+
+
 // ==================== AUTH + 2FA TOTP ====================
 // Minimal TOTP implementation (RFC 6238 compatible with Google Authenticator)
 function base32Decode(s){
@@ -1678,226 +1898,6 @@ function isLoggedIn(){
   }
   return !!currentUser;
 }
-
-
-
-// ==================== MULTI-UTENTE CORE ====================
-const USERS_KEY = 'parrocchia_users_v1';
-const ALL_PERMS = ['movimenti','elimina','budget','esporta','gestione_dati','credenziali'];
-const PERM_LABELS = {
-  movimenti: 'Aggiunge/modifica movimenti',
-  elimina: 'Elimina movimenti',
-  budget: 'Gestione budget',
-  esporta: 'Esporta CSV e stampa',
-  gestione_dati: 'Gestione dati e backup',
-  credenziali: 'Modifica credenziali'
-};
-
-function getUsers(){
-  try{
-    var raw = localStorage.getItem(USERS_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return [
-    {id:'luca', name:'Luca', role:'superadmin', password:'luca2025', totpSecret:null, permissions: ALL_PERMS.slice()},
-    {id:'peter', name:'Padre Peter', role:'admin', password:'parrocchia2025', totpSecret:null, permissions: ALL_PERMS.slice()}
-  ];
-}
-
-function saveUsers(users){
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function hasPerm(perm){
-  if(!currentUser) return false;
-  if(currentUser.role === 'superadmin') return true;
-  return currentUser.permissions.indexOf(perm) >= 0;
-}
-
-function applyPermissions(){
-  document.querySelectorAll('.nav-btn').forEach(function(btn){
-    var oc = btn.getAttribute('onclick') || '';
-    if(oc.indexOf('budget') > -1) btn.style.display = hasPerm('budget') ? '' : 'none';
-    if(oc.indexOf('esporta') > -1) btn.style.display = hasPerm('esporta') ? '' : 'none';
-    if(oc.indexOf("'dati'") > -1) btn.style.display = hasPerm('gestione_dati') ? '' : 'none';
-  });
-}
-
-
-function renderUsersPanel(){
-  var card = document.getElementById('users-mgmt-card');
-  var list = document.getElementById('users-list');
-  if(!card || !list) return;
-  if(!currentUser || currentUser.role !== 'superadmin'){
-    card.style.display = 'none';
-    return;
-  }
-  card.style.display = 'block';
-  var users = getUsers();
-  var html2 = '';
-  users.forEach(function(u){
-    var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
-    var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-    var roleLabel = u.role === 'superadmin'
-      ? '<span style="font-size:11px;background:#FFF0E6;color:#BA4A00;padding:2px 8px;border-radius:4px;font-weight:600">Super Admin</span>'
-      : '<span style="font-size:11px;background:#E8F5EA;color:#1B5E20;padding:2px 8px;border-radius:4px;font-weight:600">Admin</span>';
-    html2 += '<div style="background:var(--white);border:1px solid var(--border-light);border-radius:10px;padding:14px;margin-bottom:10px">';
-    html2 += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
-    html2 += '<div style="width:40px;height:40px;border-radius:50%;background:'+avatarBg+';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:white">'+initials+'</div>';
-    html2 += '<div><div style="font-size:14px;font-weight:600">'+u.name+'</div>'+roleLabel+'</div></div>';
-    html2 += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-    ALL_PERMS.forEach(function(p){
-      var has = u.role==='superadmin' || u.permissions.indexOf(p)>=0;
-      var dis = u.role==='superadmin';
-      var toggleStyle = 'width:32px;height:18px;border-radius:9px;border:none;cursor:'+(dis?'default':'pointer')+';position:relative;transition:background 0.2s;flex-shrink:0;background:'+(has?'var(--green-mid)':'#D1D5DB')+';opacity:'+(dis?'0.4':'1');
-      html2 += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 8px;background:var(--parchment);border-radius:5px">';
-      if(!dis){
-        html2 += '<button data-uid="'+u.id+'" data-perm="'+p+'" data-on="'+(has?'1':'0')+'" style="'+toggleStyle+'" onclick="togglePerm(this)"><span style="position:absolute;width:14px;height:14px;border-radius:50%;background:white;top:2px;left:'+(has?'16':'2')+'px;transition:left 0.2s"></span></button>';
-      } else {
-        html2 += '<div style="'+toggleStyle+';display:inline-block"><span style="position:absolute;width:14px;height:14px;border-radius:50%;background:white;top:2px;left:'+(has?'16':'2')+'px"></span></div>';
-      }
-      html2 += '<span>'+PERM_LABELS[p]+'</span></div>';
-    });
-    html2 += '</div>';
-    if(u.id !== currentUser.id){
-      html2 += '<div style="margin-top:10px;display:flex;gap:8px"><input type="password" id="pwd-'+u.id+'" placeholder="Nuova password per '+u.name+'" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px"><button class="btn btn-outline btn-sm" data-uid="'+u.id+'" onclick="changeUserPwd(this.dataset.uid)">Cambia</button></div>';
-    }
-    html2 += '</div>';
-  });
-  list.innerHTML = html2;
-}
-
-
-function togglePerm(btn){
-  var userId = btn.dataset.uid;
-  var perm = btn.dataset.perm;
-  var isOn = btn.dataset.on === '1';
-  var users = getUsers();
-  var user = users.find(function(u){return u.id===userId;});
-  if(!user || user.role==='superadmin') return;
-  var idx = user.permissions.indexOf(perm);
-  if(isOn && idx >= 0){
-    user.permissions.splice(idx,1);
-    btn.style.background = '#D1D5DB';
-    btn.dataset.on = '0';
-    var knob = btn.querySelector('span'); if(knob) knob.style.left = '2px';
-  } else if(!isOn && idx < 0){
-    user.permissions.push(perm);
-    btn.style.background = 'var(--green-mid)';
-    btn.dataset.on = '1';
-    var knob = btn.querySelector('span'); if(knob) knob.style.left = '16px';
-  }
-  saveUsers(users);
-}
-
-function changeUserPwd(userId){
-  var users = getUsers();
-  var user = users.find(function(u){return u.id===userId;});
-  var inp = document.getElementById('pwd-'+userId);
-  if(!user||!inp) return;
-  var newPwd = inp.value.trim();
-  if(newPwd.length < 4){ alert('Password troppo corta (min 4 caratteri).'); return; }
-  user.password = newPwd;
-  saveUsers(users);
-  inp.value = '';
-  alert('Password di '+user.name+' aggiornata!');
-}
-
-function renderUserSelector(){
-  var users = getUsers();
-  var bar = document.getElementById('user-select-bar');
-  if(!bar) return;
-  bar.innerHTML = users.map(function(u){
-    var avatarBg = u.role === 'superadmin' ? '#BA4A00' : '#2D5A3D';
-    var initials = u.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-    var roleText = u.role === 'superadmin' ? '&#11088; Super Admin' : '&#128100; Amministratore';
-    var sel = (selectedUserId === u.id) ? ' selected' : '';
-    return '<button class="user-select-btn'+sel+'" id="ubtn-'+u.id+'" onclick="selectUser(\'' +u.id+ '\')" type="button">'
-      +'<div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;flex-shrink:0;background:'+avatarBg+'">'+initials+'</div>'
-      +'<div style="text-align:left"><div style="font-size:14px;font-weight:600;color:var(--text-dark)">'+u.name+'</div>'
-      +'<div style="font-size:11px;color:var(--text-light)">'+roleText+'</div></div>'
-      +'</button>';
-  }).join('');
-  if(!selectedUserId && users.length > 0){ selectUser(users[0].id); }
-}
-
-
-function selectUser(uid){
-  selectedUserId = uid;
-  document.querySelectorAll('.user-select-btn').forEach(function(b){
-    b.classList.remove('selected');
-  });
-  var btn = document.getElementById('ubtn-'+uid);
-  if(btn) btn.classList.add('selected');
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-pass').focus();
-  document.getElementById('login-error').style.display = 'none';
-}
-
-function doLogin(){
-  if(!selectedUserId){ alert('Seleziona un operatore.'); return; }
-  const users = getUsers();
-  const user = users.find(u => u.id === selectedUserId);
-  if(!user){ alert('Utente non trovato.'); return; }
-  const pass = document.getElementById('login-pass').value;
-  if(pass === user.password){
-    document.getElementById('login-error').style.display = 'none';
-    currentUser = user;
-    if(user.totpSecret){
-      showTotpScreen();
-    } else {
-      sessionStorage.setItem('parrocchia_session', user.id);
-      showApp();
-      applyPermissions();
-      updateCredDisplay();
-      setTimeout(renderCharts, 100);
-    }
-  } else {
-    document.getElementById('login-error').style.display = 'block';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
-  }
-}
-
-function doLogout(){
-  if(!confirm("Vuoi uscire dall'applicazione?")) return;
-  sessionStorage.removeItem('parrocchia_session');
-  currentUser = null;
-  selectedUserId = null;
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-error').style.display = 'none';
-  hideApp();
-  renderUserSelector();
-}
-
-function saveCredentials(){
-  const newUser = document.getElementById('new-user').value.trim();
-  const newPass = document.getElementById('new-pass').value;
-  const newPass2 = document.getElementById('new-pass2').value;
-  if(!newUser){ alert('Inserisci il nuovo username.'); return; }
-  if(newPass.length < 4){ alert('La password deve essere di almeno 4 caratteri.'); return; }
-  if(newPass !== newPass2){ alert('Le due password non coincidono.'); return; }
-  localStorage.setItem(AUTH_KEY, JSON.stringify({username: newUser, password: newPass}));
-  document.getElementById('new-user').value = '';
-  document.getElementById('new-pass').value = '';
-  document.getElementById('new-pass2').value = '';
-  updateCredDisplay();
-  alert('✅ Credenziali aggiornate! Nuovo username: ' + newUser + '. Ricorda di annotare la nuova password.');
-}
-
-function updateCredDisplay(){
-  const el = document.getElementById('cur-user-display');
-  if(el){ el.value = getCredentials().username; }
-  update2FAStatus();
-}
-
-// Allow Enter key on login form
-document.addEventListener('DOMContentLoaded', function(){
-  ['login-user','login-pass'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-  });
-});
 
 
 
