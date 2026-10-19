@@ -785,9 +785,9 @@ function addYear(){
 
 // ==================== TAB SWITCH ====================
 function switchTab(t){
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>{
-    const names=['dashboard','movimenti','aggiungi','budget','storico','esporta','dati'];
-    b.classList.toggle('active',names[i]===t);
+  document.querySelectorAll('.nav-btn').forEach(function(b){
+    var oc = b.getAttribute('onclick') || '';
+    b.classList.toggle('active', oc.indexOf("'"+t+"'") > -1);
   });
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('s-'+t).classList.add('active');
