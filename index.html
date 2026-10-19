@@ -308,9 +308,13 @@ tbody tr:last-child{border-bottom:none}
       <div class="header-sub">Rev. Padre Peter Tajish &nbsp;·&nbsp; Gestione finanziaria</div>
     </div>
   </div>
-  <div class="year-selector">
-    <label>Anno:</label>
-    <select id="globalYear" onchange="changeYear()"></select>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:10px;color:rgba(255,255,255,0.4)">v2.1</span>
+    <div class="year-selector">
+      <label>Anno:</label>
+      <select id="globalYear" onchange="changeYear()"></select>
+    </div>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:white;font-size:12px;font-weight:600;padding:5px 12px;cursor:pointer">🚪 Esci</button>
   </div>
 </div>
 
@@ -1591,7 +1595,7 @@ async function verifyTotp(){
   const ok = await verifyTotpCode(currentUser.totpSecret, code);
   if(ok){
     stopTotpTimer();
-    sessionStorage.setItem('parrocchia_session', currentUser.id);
+    sessionStorage.setItem('parrocchia_session','1');
     document.getElementById('totp-error').style.display='none';
     showApp();
     applyPermissions();
@@ -1745,7 +1749,7 @@ function doLogin(){
     if(user.totpSecret){
       showTotpScreen();
     } else {
-      sessionStorage.setItem('parrocchia_session', user.id);
+      sessionStorage.setItem('parrocchia_session','1');
       showApp();
       applyPermissions();
       updateCredDisplay();
@@ -1759,14 +1763,20 @@ function doLogin(){
 }
 
 function doLogout(){
-  if(!confirm("Vuoi uscire dall'applicazione?")) return;
   sessionStorage.removeItem('parrocchia_session');
   currentUser = null;
   selectedUserId = null;
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-error').style.display = 'none';
-  hideApp();
-  renderUserSelector();
+  // Hide all app elements
+  ['app-header','app-church-bar','app-nav','app-main','totp-screen'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.style.display='none';
+  });
+  // Show login
+  var ls=document.getElementById('login-screen');
+  if(ls){ ls.style.cssText='display:flex!important;position:fixed;inset:0;z-index:99999;background:var(--green-deep);align-items:center;justify-content:center;padding:1.5rem'; }
+  var lp=document.getElementById('login-pass'); if(lp) lp.value='';
+  var le=document.getElementById('login-error'); if(le) le.style.display='none';
+  selectedUserId=null;
+  try{ renderUserSelector(); }catch(e){ console.warn('renderUserSelector:',e); }
 }
 
 function saveCredentials(){
@@ -1926,7 +1936,7 @@ async function verifyTotp(){
   const ok = await verifyTotpCode(creds.totpSecret, code);
   if(ok){
     stopTotpTimer();
-    sessionStorage.setItem('parrocchia_session','ok');
+    sessionStorage.setItem('parrocchia_session','1');
     document.getElementById('totp-error').style.display='none';
     showApp();
     updateCredDisplay();
