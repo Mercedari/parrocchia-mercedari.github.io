@@ -1523,13 +1523,23 @@ function switchChurch(idx){
     b.classList.remove('active-0','active-1');
     if(i===idx) b.classList.add('active-'+idx);
   });
-  // Update bar background and label color
+  // Update bar background, label color and nav accent
   var bar = document.getElementById('app-church-bar');
   var label = bar ? bar.querySelector('.church-label') : null;
   var barColors = ['#F5EDE8','#EFF6FF'];
   var labelColors = ['#6B1A1A','#1E3A8A'];
+  var navAccents = ['#8B1A1A','#1E3A8A'];
+  var mainBg = ['#FDF8F3','#F0F7FF'];
   if(bar) bar.style.background = barColors[idx];
   if(label) label.style.color = labelColors[idx];
+  // Update nav active border color
+  document.querySelectorAll('.nav-btn.active').forEach(function(b){
+    b.style.borderBottomColor = navAccents[idx];
+    b.style.color = navAccents[idx];
+  });
+  // Update main background tint
+  var main = document.getElementById('app-main');
+  if(main) main.style.background = mainBg[idx];
   // Update header subtitle
   const sub = document.querySelector('.header-sub');
   if(sub) sub.textContent = CHURCHES[idx].name + ' · Gestione finanziaria';
@@ -2214,8 +2224,15 @@ setTimeout(renderCharts,150);
 // Show login if not authenticated — app is hidden by default in HTML
 if(isLoggedIn()){
   showApp();
+  // Apply initial church colors
+  var bar0 = document.getElementById('app-church-bar');
+  if(bar0){
+    bar0.style.background = '#F5EDE8';
+    var lbl = bar0.querySelector('.church-label');
+    if(lbl) lbl.style.color = '#6B1A1A';
+  }
 } else {
-  hideApp(); // redundant but explicit
+  hideApp();
   document.getElementById('login-screen').style.display = 'flex';
 }
 updateCredDisplay();
