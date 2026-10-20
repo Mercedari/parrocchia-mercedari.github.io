@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1A3A2A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -283,6 +283,66 @@ tbody tr:last-child{border-bottom:none}
 .user-select-role{font-size:11px;color:var(--text-light)}
 /* Credenziali in impostazioni */
 .cred-card{background:var(--white);border:1px solid var(--border-light);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:1.5rem}
+
+/* ===== MOBILE LAYOUT ===== */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden !important; width: 100% !important; }
+  .section { padding: 1rem !important; }
+  /* Move header to bottom on mobile */
+  .header {
+    position: fixed !important;
+    bottom: 0 !important;
+    top: auto !important;
+    left: 0; right: 0;
+    z-index: 1000;
+    padding: 6px 1rem !important;
+    padding-bottom: env(safe-area-inset-bottom, 6px) !important;
+    order: 999;
+  }
+  /* Church bar stays near top but with padding for status bar */
+  .church-bar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    padding-top: env(safe-area-inset-top, 8px) !important;
+  }
+  /* Nav scrollable */
+  .nav {
+    position: sticky;
+    top: 44px;
+    z-index: 899;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Main content padding for bottom header */
+  .main {
+    padding-bottom: 80px !important;
+  }
+  /* Header content compact */
+  .header-brand { gap: 6px !important; }
+  .header-logo { width: 28px !important; height: 28px !important; }
+  .header-title { font-size: 13px !important; }
+  .header-sub { display: none !important; }
+  /* Year selector smaller */
+  .year-selector label { display: none !important; }
+  /* Cards full width */
+  .export-grid { grid-template-columns: 1fr !important; }
+  .metrics-grid { grid-template-columns: 1fr 1fr !important; }
+  /* Bigger touch targets */
+  .btn { min-height: 40px !important; padding: 8px 16px !important; }
+  .nav-btn { padding: 10px 12px !important; font-size: 12px !important; }
+  /* Church buttons full width */
+  .church-btn { padding: 8px 16px !important; font-size: 12px !important; }
+  /* Login box */
+  .login-box { margin: 1rem !important; padding: 1.5rem !important; }
+  /* Version text hidden on mobile */
+  #version-label { display: none !important; }
+}
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .header { padding: 4px 1rem !important; }
+  .main { padding-bottom: 60px !important; }
+}
 </style>
 </head>
 <body>
@@ -306,6 +366,14 @@ tbody tr:last-child{border-bottom:none}
     </div>
     <button class="login-btn" onclick="doLogin()">Accedi</button>
     <div class="login-footer">Accesso riservato al personale autorizzato</div>
+    <button type="button" onclick="togglePasswordHint()" style="background:none;border:none;color:var(--green-mid);font-size:12px;cursor:pointer;margin-top:8px;text-decoration:underline">🔑 Password dimenticata?</button>
+    <div id="pwd-hint-box" style="display:none;margin-top:12px;background:#E8F5EA;border:1px solid #A5D6A7;border-radius:8px;padding:12px;text-align:left">
+      <div style="font-size:13px;font-weight:600;color:#1B5E20;margin-bottom:6px">🔑 Come recuperare la password</div>
+      <div style="font-size:12px;color:#2E7D32;line-height:1.6">
+        Contatta il <strong>Super Admin Luca</strong> per reimpostare la tua password.
+      </div>
+      <button type="button" onclick="togglePasswordHint()" style="background:none;border:none;color:#1B5E20;font-size:11px;cursor:pointer;margin-top:8px;text-decoration:underline">✕ Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -319,7 +387,7 @@ tbody tr:last-child{border-bottom:none}
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:10px;color:rgba(255,255,255,0.4)">v2.1</span>
+    <span id="version-label" style="font-size:10px;color:rgba(255,255,255,0.4)">v2.1</span>
     <div class="year-selector">
       <label>Anno:</label>
       <select id="globalYear" onchange="changeYear()"></select>
@@ -1245,6 +1313,11 @@ async function doGhBackup(silent){
     if(res.ok){var now=new Date().toLocaleTimeString('it-IT');updateGhStatus('ok','✅ Backup '+now);if(!silent)logGh('✅ Backup completato alle '+now);}
     else{updateGhStatus('err','❌ Errore');if(!silent)try{var e=await res.json();logGh('❌ '+(e.message||res.status));}catch(x){logGh('❌ Errore '+res.status);}}
   }catch(e){updateGhStatus('err','❌ Connessione fallita');if(!silent)logGh('❌ '+e.message);}
+}
+
+function togglePasswordHint(){
+  var box = document.getElementById('pwd-hint-box');
+  if(box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 function testGhBackup(){doGhBackup(false);}
 function manualGhBackup(){doGhBackup(false);}
